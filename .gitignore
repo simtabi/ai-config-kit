@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Venvs
+.venv/
+venv/
+env/
+
+# Tools
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Secrets — defence in depth. The tool itself enforces these via
+# secret_patterns; this is the belt and suspenders.
+**/.credentials.json
+**/.credentials.json.*
+**/*.secret
+**/*.key
+**/*.pem
+**/*.p12
+**/*.token
+**/.env
+**/.env.*
+
+# Local scratch
+TODO.local.md
+NOTES.local.md

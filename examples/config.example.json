@@ -1,0 +1,22 @@
+{
+  "content_dir": "/Users/you/.config/claude-config/content",
+  "target_base": "/Users/you/.claude",
+  "secret_patterns": [
+    ".credentials.json",
+    "*.secret",
+    "*.key",
+    "*.pem",
+    "*.p12",
+    "*.token",
+    ".env",
+    ".env.*"
+  ],
+  "ignore_patterns": [
+    ".DS_Store",
+    "*.swp",
+    "*.swo"
+  ],
+  "dir_symlink_names": [
+    "memory"
+  ]
+}
