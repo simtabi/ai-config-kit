@@ -1460,14 +1460,14 @@ def test_with_vendors_accepts_known_set(cfg: ClaudeConfig) -> None:
 
 def test_vendor_status_returns_correct_levels(cfg: ClaudeConfig) -> None:
     assert cfg.vendor_status("claude-code") == "current"
-    assert cfg.vendor_status("cursor") == "planned"
+    assert cfg.vendor_status("codex") == "planned"
     assert cfg.vendor_status("nope-not-a-vendor") == "unknown"
 
 
 def test_unsupported_vendors_flags_planned(cfg: ClaudeConfig) -> None:
-    cfg.with_vendors(["claude-code", "cursor", "aider"])
+    cfg.with_vendors(["claude-code", "codex", "cline"])
     unsupp = cfg.unsupported_vendors()
-    assert "cursor" in unsupp and "aider" in unsupp
+    assert "codex" in unsupp and "cline" in unsupp
     assert "claude-code" not in unsupp
 
 
@@ -1513,3 +1513,223 @@ def test_vendors_default_when_config_has_none(
     out.write_text(json.dumps({"content_dir": str(tmp_path / "x")}))
     cfg2 = ClaudeConfig.from_config(out)
     assert cfg2.vendors == ClaudeConfig.DEFAULT_VENDORS
+
+
+# --- project_install (slice 1: vendor adapters) ----------------------------
+
+
+def test_vendor_adapters_registry_has_claude_code_and_aider(
+    cfg: ClaudeConfig,
+) -> None:
+    """Slice 1 wires two adapters. Everything else is planned."""
+    assert "claude-code" in cfg.VENDOR_ADAPTERS
+    assert "aider" in cfg.VENDOR_ADAPTERS
+    cc = cfg.VENDOR_ADAPTERS["claude-code"]
+    assert cc.global_target is not None
+    assert cc.project_files == ()  # claude-code is global-only
+    aider = cfg.VENDOR_ADAPTERS["aider"]
+    assert aider.global_target is None
+    assert len(aider.project_files) == 1
+    assert aider.project_files[0].rel_path == "AGENTS.md"
+    assert aider.canonical_source == "AGENTS.md"
+
+
+def test_project_install_writes_agents_md_for_aider(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """The canonical case: aider's AGENTS.md is copied from src_dir to a project."""
+    (cfg.src_dir / "AGENTS.md").write_text("# canonical rules\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["aider"])
+    assert "aider:AGENTS.md" in report.files_written
+    out = project / "AGENTS.md"
+    assert out.is_file()
+    assert out.read_text() == "# canonical rules\n"
+
+
+def test_project_install_skips_existing_without_force(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    (cfg.src_dir / "AGENTS.md").write_text("# canon\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    (project / "AGENTS.md").write_text("# preexisting; user already had one\n")
+    report = cfg.project_install(project, vendors=["aider"])
+    assert "aider:AGENTS.md" in report.files_skipped
+    assert report.files_written == []
+    # File must remain unchanged
+    assert "preexisting" in (project / "AGENTS.md").read_text()
+
+
+def test_project_install_force_overwrites(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    (cfg.src_dir / "AGENTS.md").write_text("# canon\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    (project / "AGENTS.md").write_text("# stale\n")
+    report = cfg.project_install(project, vendors=["aider"], force=True)
+    assert "aider:AGENTS.md" in report.files_written
+    assert (project / "AGENTS.md").read_text() == "# canon\n"
+
+
+def test_project_install_dry_run_writes_nothing(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    (cfg.src_dir / "AGENTS.md").write_text("# canon\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["aider"], dry_run=True)
+    assert "aider:AGENTS.md" in report.files_written  # marked as would-write
+    assert report.dry_run
+    assert not (project / "AGENTS.md").exists()
+
+
+def test_project_install_claude_code_is_noop(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """claude-code is global-only and has no project_files. Selecting it
+    for project_install should be a clean no-op, not a failure."""
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["claude-code"])
+    assert report.files_written == []
+    assert report.files_failed == []
+
+
+def test_project_install_skips_planned_vendor_silently(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """A planned-but-unwired vendor (in SUPPORTED_VENDORS but not in
+    VENDOR_ADAPTERS) must not fail the run. It surfaces nothing, since
+    the user already saw the 'planned' status during select_vendors."""
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["codex"])
+    assert report.files_written == []
+    assert report.files_failed == []
+
+
+def test_project_install_rejects_unknown_vendor(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["nope-not-real"])
+    assert any("unknown vendor" in msg for _, msg in report.files_failed)
+
+
+def test_project_install_raises_when_project_missing(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    missing = tmp_path / "no-such-project"
+    with pytest.raises(ConfigError, match="not a directory"):
+        cfg.project_install(missing, vendors=["aider"])
+
+
+def test_project_install_raises_when_canonical_source_missing(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """aider needs AGENTS.md in src_dir; if it isn't there, surface a
+    file-level failure rather than silently writing empty content."""
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["aider"])
+    # src_dir has no AGENTS.md (fixture only makes the dir)
+    assert any(
+        "canonical source missing" in msg for _, msg in report.files_failed
+    )
+    assert report.files_written == []
+
+
+def test_project_install_falls_back_to_configured_vendors(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """When vendors=None, project_install uses the ClaudeConfig.vendors list."""
+    (cfg.src_dir / "AGENTS.md").write_text("# x\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    cfg.with_vendors(["claude-code", "aider"])
+    report = cfg.project_install(project)
+    assert report.vendors == ("claude-code", "aider")
+    # claude-code: no-op; aider: writes AGENTS.md
+    assert "aider:AGENTS.md" in report.files_written
+
+
+# --- project_install (slice 2: cursor/windsurf/copilot) -------------------
+
+
+@pytest.mark.parametrize(
+    "vendor, rel_path",
+    [
+        ("cursor", ".cursorrules"),
+        ("windsurf", ".windsurfrules"),
+        ("copilot", ".github/copilot-instructions.md"),
+    ],
+)
+def test_project_install_writes_per_vendor_file(
+    cfg: ClaudeConfig, tmp_path: Path, vendor: str, rel_path: str
+) -> None:
+    """Each new adapter copies AGENTS.md into the vendor's expected dest."""
+    (cfg.src_dir / "AGENTS.md").write_text("# canon\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=[vendor])
+    assert f"{vendor}:{rel_path}" in report.files_written
+    out = project / rel_path
+    assert out.is_file()
+    assert out.read_text() == "# canon\n"
+    # For the copilot case the .github dir must have been created
+    if vendor == "copilot":
+        assert (project / ".github").is_dir()
+
+
+def test_project_install_writes_all_four_vendors_in_one_call(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """A user with the full project-vendor set gets one canonical AGENTS.md
+    plus three copies in vendor-specific paths in a single command."""
+    (cfg.src_dir / "AGENTS.md").write_text("# canonical rules\n")
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(
+        project,
+        vendors=["aider", "cursor", "windsurf", "copilot"],
+    )
+    expected = {
+        "aider:AGENTS.md",
+        "cursor:.cursorrules",
+        "windsurf:.windsurfrules",
+        "copilot:.github/copilot-instructions.md",
+    }
+    assert set(report.files_written) == expected
+    assert report.files_failed == []
+
+
+def test_cursor_adapter_declares_global_target(cfg: ClaudeConfig) -> None:
+    """Cursor supports both project-level (.cursorrules) and a global rules
+    directory (~/.cursor/rules). The global path will be honored by
+    install() in slice 3; slice 2 just declares it."""
+    cursor = cfg.VENDOR_ADAPTERS["cursor"]
+    assert cursor.global_target is not None
+    assert cursor.global_target.name == "rules"
+    assert cursor.global_target.parent.name == ".cursor"
+
+
+def test_windsurf_and_copilot_are_project_only(cfg: ClaudeConfig) -> None:
+    """Windsurf + Copilot have no documented global config location."""
+    assert cfg.VENDOR_ADAPTERS["windsurf"].global_target is None
+    assert cfg.VENDOR_ADAPTERS["copilot"].global_target is None
+
+
+def test_vendor_status_promotions_in_slice_2(cfg: ClaudeConfig) -> None:
+    """Slice 2 promotes four vendors to 'current'. Codex + cline + claude
+    stay non-current pending their own slices."""
+    assert cfg.vendor_status("cursor") == "current"
+    assert cfg.vendor_status("windsurf") == "current"
+    assert cfg.vendor_status("copilot") == "current"
+    assert cfg.vendor_status("aider") == "current"
+    # Still not 'current'
+    assert cfg.vendor_status("codex") == "planned"
+    assert cfg.vendor_status("cline") == "planned"

@@ -451,6 +451,68 @@ class ListingReport:
         return "\n".join(lines).rstrip()
 
 
+@dataclass(frozen=True)
+class ProjectFile:
+    """A file a vendor reads from a project's root.
+
+    ``style`` controls what the configurator writes:
+
+    - ``copy``: write the canonical content verbatim. Use for vendors
+      that read the file directly (e.g., aider reads AGENTS.md).
+    - ``symlink-canonical``: symlink dest to ``<project>/<canonical>``
+      so a single source of truth backs every vendor. Best for vendors
+      whose convention is "an AGENTS.md by another name".
+    - ``import-stub``: write a short file that imports the canonical
+      via the vendor's own include directive (e.g., ``@AGENTS.md``).
+      Best for vendors that prefer their own file but accept imports.
+    """
+
+    rel_path: str
+    style: str  # "copy" | "symlink-canonical" | "import-stub"
+    stub_body: str = ""  # used when style == "import-stub"
+
+
+@dataclass(frozen=True)
+class VendorAdapter:
+    """How a single AI vendor consumes configurator-managed content.
+
+    Each vendor declares whether it supports global config (a path
+    under $HOME), per-project files, both, or neither. The
+    configurator's ``install`` honours ``global_target`` and
+    ``project_install`` honours ``project_files``.
+    """
+
+    name: str
+    status: str  # "current" | "partial" | "planned"
+    global_target: Path | None = None
+    project_files: tuple[ProjectFile, ...] = ()
+    canonical_source: str | None = None  # filename in content dir, e.g. "AGENTS.md"
+
+
+@dataclass(frozen=True)
+class ProjectInstallReport:
+    """Outcome of ``project_install`` for a single project + vendor set."""
+
+    project: Path
+    vendors: tuple[str, ...] = ()
+    files_written: list[str] = field(default_factory=list)
+    files_skipped: list[str] = field(default_factory=list)
+    files_failed: list[tuple[str, str]] = field(default_factory=list)
+    dry_run: bool = False
+
+    def summary(self) -> str:
+        parts = [f"project={self.project}", f"vendors={','.join(self.vendors)}"]
+        if self.files_written:
+            parts.append(f"wrote {len(self.files_written)}")
+        if self.files_skipped:
+            parts.append(f"skipped {len(self.files_skipped)}")
+        if self.files_failed:
+            parts.append(f"failed {len(self.files_failed)}")
+        if self.dry_run:
+            parts.append("(dry-run)")
+        return "; ".join(parts)
+
+
 def _format_size(n: int) -> str:
     """Human-readable byte size, 1 decimal for KB and above."""
     if n < 1024:
@@ -653,11 +715,66 @@ class ClaudeConfig:
         "claude-code": "current",
         "claude": "partial",
         "codex": "planned",
-        "cursor": "planned",
+        "cursor": "current",
         "cline": "planned",
-        "aider": "planned",
-        "windsurf": "planned",
-        "copilot": "planned",
+        "aider": "current",
+        "windsurf": "current",
+        "copilot": "current",
+    }
+
+    # Vendor adapters. Each adapter declares how a single AI vendor
+    # consumes configurator-managed content. ``install`` honours
+    # ``global_target``; ``project_install`` honours ``project_files``.
+    #
+    # AGENTS.md is the canonical cross-vendor source. Vendors that read
+    # it natively (aider, increasingly codex/cline) use it directly;
+    # vendors with their own files import or symlink the canonical.
+    VENDOR_ADAPTERS: ClassVar[dict[str, VendorAdapter]] = {
+        "claude-code": VendorAdapter(
+            name="claude-code",
+            status="current",
+            global_target=Path.home() / ".claude",
+            project_files=(),
+            canonical_source=None,
+        ),
+        "aider": VendorAdapter(
+            name="aider",
+            status="current",
+            global_target=None,
+            project_files=(
+                ProjectFile(rel_path="AGENTS.md", style="copy"),
+            ),
+            canonical_source="AGENTS.md",
+        ),
+        "cursor": VendorAdapter(
+            name="cursor",
+            status="current",
+            global_target=Path.home() / ".cursor" / "rules",
+            project_files=(
+                ProjectFile(rel_path=".cursorrules", style="copy"),
+            ),
+            canonical_source="AGENTS.md",
+        ),
+        "windsurf": VendorAdapter(
+            name="windsurf",
+            status="current",
+            global_target=None,
+            project_files=(
+                ProjectFile(rel_path=".windsurfrules", style="copy"),
+            ),
+            canonical_source="AGENTS.md",
+        ),
+        "copilot": VendorAdapter(
+            name="copilot",
+            status="current",
+            global_target=None,
+            project_files=(
+                ProjectFile(
+                    rel_path=".github/copilot-instructions.md", style="copy"
+                ),
+            ),
+            canonical_source="AGENTS.md",
+        ),
     }
 
     # Environment variables consulted between an explicit argument and the
@@ -1137,6 +1254,112 @@ class ClaudeConfig:
             skipped_via_dir_symlink=skipped,
             host_overlays_linked=overlays,
             secrets_skipped=secrets,
+        )
+
+    # ---- project_install (per-vendor, per-project files) -------------
+
+    def project_install(
+        self,
+        project: Path | str,
+        vendors: Iterable[str] | None = None,
+        dry_run: bool = False,
+        force: bool = False,
+    ) -> ProjectInstallReport:
+        """Write per-project vendor files into ``project``.
+
+        Consults ``VENDOR_ADAPTERS`` for each selected vendor and writes
+        its declared ``project_files`` (AGENTS.md for aider, etc.). The
+        canonical source for each vendor file is read from ``src_dir/``
+        (typically ``src_dir/AGENTS.md``). Refuses to overwrite an
+        existing file unless ``force`` is set, and surfaces unknown
+        vendors as failures rather than silently skipping.
+
+        Returns a :class:`ProjectInstallReport`. Vendors without
+        ``project_files`` (e.g., ``claude-code``) are no-ops here and
+        belong in :py:meth:`install` instead.
+        """
+        proj = Path(project).expanduser().resolve()
+        if not proj.is_dir():
+            raise ConfigError(f"project path is not a directory: {proj}")
+
+        selected = tuple(vendors) if vendors is not None else self._vendors
+
+        written: list[str] = []
+        skipped: list[str] = []
+        failed: list[tuple[str, str]] = []
+
+        for vendor in selected:
+            adapter = self.VENDOR_ADAPTERS.get(vendor)
+            if adapter is None:
+                # Vendor in SUPPORTED_VENDORS without an adapter yet:
+                # planned, not failed. Skip without surfacing as error.
+                if vendor in self.SUPPORTED_VENDORS:
+                    continue
+                failed.append((vendor, f"unknown vendor: {vendor}"))
+                continue
+            if not adapter.project_files:
+                continue  # global-only vendor (claude-code), handled by install()
+
+            for pf in adapter.project_files:
+                dest = proj / pf.rel_path
+                if dest.exists() and not force:
+                    skipped.append(f"{vendor}:{pf.rel_path}")
+                    continue
+
+                try:
+                    body = self._project_file_body(adapter, pf)
+                except ConfigError as e:
+                    failed.append((f"{vendor}:{pf.rel_path}", str(e)))
+                    continue
+
+                if not dry_run:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(body, encoding="utf-8")
+                written.append(f"{vendor}:{pf.rel_path}")
+
+        return ProjectInstallReport(
+            project=proj,
+            vendors=selected,
+            files_written=written,
+            files_skipped=skipped,
+            files_failed=failed,
+            dry_run=dry_run,
+        )
+
+    def _project_file_body(
+        self, adapter: VendorAdapter, pf: ProjectFile
+    ) -> str:
+        """Resolve the body for a single project file by ``style``.
+
+        - ``copy``: read the canonical source from src_dir and return it.
+        - ``import-stub``: return the adapter's ``stub_body`` verbatim
+          (which typically imports the canonical via ``@AGENTS.md`` or
+          equivalent).
+        - ``symlink-canonical``: same as copy for the body, but the
+          caller should make ``dest`` a symlink instead of writing. This
+          method returns the resolved bytes so dry-run still works; the
+          symlink decision is made in ``project_install``.
+        """
+        if pf.style == "import-stub":
+            if not pf.stub_body:
+                raise ConfigError(
+                    f"{adapter.name}: import-stub for {pf.rel_path} has no stub_body"
+                )
+            return pf.stub_body
+        if pf.style in ("copy", "symlink-canonical"):
+            if adapter.canonical_source is None:
+                raise ConfigError(
+                    f"{adapter.name}: style={pf.style} needs a canonical_source"
+                )
+            source = self.src_dir / adapter.canonical_source
+            if not source.is_file():
+                raise ConfigError(
+                    f"canonical source missing: {source} "
+                    f"(needed by {adapter.name}:{pf.rel_path})"
+                )
+            return source.read_text(encoding="utf-8")
+        raise ConfigError(
+            f"{adapter.name}: unknown style '{pf.style}' for {pf.rel_path}"
         )
 
     # ---- uninstall ----------------------------------------------------

@@ -175,6 +175,30 @@ def _build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser("install", help="Symlink content into ~/.claude/.")
     p_install.add_argument("--dry-run", action="store_true")
 
+    # project-install (per-vendor files into a project repo)
+    p_pi = sub.add_parser(
+        "project-install",
+        help="Write per-vendor files (AGENTS.md, .cursorrules, ...) into a project repo.",
+    )
+    p_pi.add_argument(
+        "project",
+        type=Path,
+        help="Path to the project repo to install into.",
+    )
+    p_pi.add_argument(
+        "--vendor",
+        action="append",
+        dest="vendors",
+        metavar="NAME",
+        help="Vendor to install for; pass multiple times for several. Defaults to the configured vendors list.",
+    )
+    p_pi.add_argument("--dry-run", action="store_true")
+    p_pi.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing per-project files (default: skip).",
+    )
+
     # uninstall
     p_un = sub.add_parser("uninstall", help="Remove symlinks (content untouched).")
     p_un.add_argument(
@@ -403,6 +427,18 @@ def main(argv: list[str] | None = None) -> int:
             install_report = cfg.install(dry_run=args.dry_run)
             print(("[dry-run] " if args.dry_run else "") + install_report.summary())
             return 0
+
+        if args.cmd == "project-install":
+            pi_report = cfg.project_install(
+                project=args.project,
+                vendors=args.vendors,  # None falls back to configured vendors
+                dry_run=args.dry_run,
+                force=args.force,
+            )
+            print(pi_report.summary())
+            for fail_name, fail_msg in pi_report.files_failed:
+                print(f"  fail: {fail_name}: {fail_msg}")
+            return 1 if pi_report.files_failed else 0
 
         if args.cmd == "uninstall":
             r = cfg.uninstall(restore_backups=not args.no_restore)

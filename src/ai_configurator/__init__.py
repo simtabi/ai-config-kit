@@ -36,6 +36,8 @@ from .manager import (
     InstallReport,
     ListingGroup,
     ListingReport,
+    ProjectFile,
+    ProjectInstallReport,
     Prompter,
     ReconcileReport,
     RepairAction,
@@ -44,6 +46,7 @@ from .manager import (
     SyncReport,
     UninstallReport,
     ValidationReport,
+    VendorAdapter,
 )
 
 try:
@@ -67,6 +70,8 @@ __all__ = [
     "InstallReport",
     "ListingGroup",
     "ListingReport",
+    "ProjectFile",
+    "ProjectInstallReport",
     "Prompter",
     "ReconcileReport",
     "RepairAction",
@@ -75,5 +80,6 @@ __all__ = [
     "SyncReport",
     "UninstallReport",
     "ValidationReport",
+    "VendorAdapter",
     "__version__",
 ]
