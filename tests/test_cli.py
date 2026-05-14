@@ -498,3 +498,89 @@ def test_project_install_dry_run_via_cli(tmp_path: Path) -> None:
     )
     assert rc == 0
     assert not (project / ".cursorrules").exists()
+
+
+# --- heal verb (Workstream A.2) --------------------------------------------
+
+
+def test_heal_dry_run_reports_findings_nonzero_exit(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """When there's a finding and no --yes, exit is nonzero so CI can
+    catch drift. Output names the issue + suggested mode."""
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    (content / "claude").mkdir(parents=True)
+    secret = content / "claude" / "bad.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "heal",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "sensitive-mode-too-open" in out
+    assert "expected=0o600" in out
+    assert rc != 0  # findings present, dry-run, nonzero
+    import stat as _s
+    assert _s.S_IMODE(secret.stat().st_mode) == 0o644  # not mutated
+
+
+def test_heal_yes_applies_fix_and_exits_zero(
+    tmp_path: Path
+) -> None:
+    """`--yes` actually narrows the mode; exit is 0 after fix."""
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    (content / "claude").mkdir(parents=True)
+    secret = content / "claude" / "go.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "heal", "--yes",
+        ]
+    )
+    assert rc == 0
+    import stat as _s
+    assert _s.S_IMODE(secret.stat().st_mode) == 0o600
+
+
+def test_doctor_heal_shortcut_runs_audit(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`doctor --heal` runs the doctor check AND the permission audit
+    in one invocation."""
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("x")
+    secret = content / "claude" / "y.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "install",
+        ]
+    )
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "doctor", "--heal",
+        ]
+    )
+    out = capsys.readouterr().out
+    # heal's findings present in output (doctor + audit_permissions both ran)
+    assert "sensitive-mode-too-open" in out
+    assert rc == 0  # doctor itself happy; heal findings don't fail doctor

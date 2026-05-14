@@ -6,6 +6,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added: permission self-heal (`heal` verb, `doctor --heal` shortcut)
+
+- `ai-configurator heal [--yes] [--dry-run]`: audits permission +
+  mode-bit issues on the content dir and (with `--yes`) applies
+  fixes. Four issue classes:
+  - `sensitive-mode-too-open`: a secret-pattern file with mode
+    looser than `0o600` (narrows to `0o600`).
+  - `world-writable`: any path with `S_IWOTH` set (narrows to
+    `0o644` / `0o755`).
+  - `not-executable`: a shell script under `scripts/` without
+    user-exec (sets `0o755`).
+  - `orphan-owner`: a file owned by a different uid. Always
+    flagged, never fixed. The tool refuses to escalate.
+- `ai-configurator doctor --heal`: doctor + permission audit in one
+  shot, dry-run only.
+- New public types: `PermissionFinding`, `HealReport`. Defaults to
+  dry-run; CI-friendly nonzero exit when findings exist but no
+  `--yes`.
+- Symlinks are skipped (their mode bits are ignored by most
+  filesystems and `chmod()` follows them); `.git/` subtrees are
+  skipped entirely.
+
+11 new manager tests + 3 CLI tests. 206 → 220.
+
 ## [0.3.0] - 2026-05-14
 
 ### Added: Homebrew tap distribution channel

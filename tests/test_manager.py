@@ -2054,3 +2054,167 @@ def test_e2e_multi_vendor_pipeline(tmp_path: Path) -> None:
 
     # claude-code is global-only; nothing per-project should be written for it
     assert not any(name.startswith("claude-code:") for name in pi.files_written)
+
+
+# --- audit_permissions (heal) ----------------------------------------------
+
+
+import stat  # noqa: E402
+
+
+def test_audit_permissions_empty_content_dir_reports_nothing(
+    cfg: ClaudeConfig,
+) -> None:
+    """A fresh content dir with no problematic files yields zero findings."""
+    report = cfg.audit_permissions()
+    assert report.findings == []
+    assert "no permission issues" in report.summary()
+
+
+def test_audit_permissions_flags_sensitive_too_open(
+    cfg: ClaudeConfig,
+) -> None:
+    """A secret-pattern file with 0644 is flagged sensitive-mode-too-open."""
+    secret = cfg.src_dir / "x.key"
+    secret.write_text("private")
+    secret.chmod(0o644)
+    report = cfg.audit_permissions()
+    issues = [f.issue for f in report.findings if f.path == secret]
+    assert "sensitive-mode-too-open" in issues
+    finding = next(f for f in report.findings if f.path == secret)
+    assert finding.current_mode == 0o644
+    assert finding.expected_mode == 0o600
+
+
+def test_audit_permissions_flags_world_writable_file(
+    cfg: ClaudeConfig,
+) -> None:
+    """An 0o666 file lands as world-writable, expected narrowed to 0o644."""
+    f = cfg.src_dir / "shared.md"
+    f.write_text("hi")
+    f.chmod(0o666)
+    report = cfg.audit_permissions()
+    finding = next(
+        (x for x in report.findings if x.issue == "world-writable"), None
+    )
+    assert finding is not None
+    assert finding.path == f
+    assert finding.expected_mode == 0o644
+
+
+def test_audit_permissions_flags_world_writable_dir(
+    cfg: ClaudeConfig,
+) -> None:
+    """A 0o777 dir narrows to 0o755."""
+    d = cfg.src_dir / "open-dir"
+    d.mkdir()
+    d.chmod(0o777)
+    report = cfg.audit_permissions()
+    finding = next(
+        (x for x in report.findings
+         if x.issue == "world-writable" and x.path == d),
+        None,
+    )
+    assert finding is not None
+    assert finding.expected_mode == 0o755
+
+
+def test_audit_permissions_flags_script_missing_exec(
+    cfg: ClaudeConfig,
+) -> None:
+    """A shell script under scripts/ without +x is flagged not-executable."""
+    scripts = cfg.src_dir / "scripts"
+    scripts.mkdir()
+    script = scripts / "render.sh"
+    script.write_text("#!/bin/sh\necho hello\n")
+    script.chmod(0o644)
+    report = cfg.audit_permissions()
+    finding = next(
+        (x for x in report.findings if x.issue == "not-executable"), None
+    )
+    assert finding is not None
+    assert finding.path == script
+    assert finding.expected_mode == 0o755
+
+
+def test_audit_permissions_dry_run_default_does_not_mutate(
+    cfg: ClaudeConfig,
+) -> None:
+    """Default is dry-run; the actual mode must not change."""
+    secret = cfg.src_dir / "y.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    cfg.audit_permissions()
+    assert stat.S_IMODE(secret.stat().st_mode) == 0o644
+
+
+def test_audit_permissions_yes_fixes_sensitive_mode(
+    cfg: ClaudeConfig,
+) -> None:
+    """yes=True + dry_run=False actually narrows the mode."""
+    secret = cfg.src_dir / "z.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    report = cfg.audit_permissions(dry_run=False, yes=True)
+    assert stat.S_IMODE(secret.stat().st_mode) == 0o600
+    assert any(f.issue == "sensitive-mode-too-open" for f in report.fixed)
+    assert report.dry_run is False
+
+
+def test_audit_permissions_dry_run_overrides_yes(
+    cfg: ClaudeConfig,
+) -> None:
+    """Explicitly: yes alone without dry_run=False does NOT mutate.
+    dry_run is the master safety; yes only matters when dry_run=False."""
+    secret = cfg.src_dir / "a.key"
+    secret.write_text("priv")
+    secret.chmod(0o644)
+    cfg.audit_permissions(dry_run=True, yes=True)
+    assert stat.S_IMODE(secret.stat().st_mode) == 0o644
+
+
+def test_audit_permissions_script_flag_promotes_world_writable(
+    cfg: ClaudeConfig,
+) -> None:
+    """A world-writable file with +x should narrow to 0o755 (script)
+    rather than 0o644 (data)."""
+    scripts = cfg.src_dir / "scripts"
+    scripts.mkdir()
+    s = scripts / "bad.sh"
+    s.write_text("#!/bin/sh\necho hi\n")
+    s.chmod(0o777)
+    report = cfg.audit_permissions()
+    ww = next(
+        (x for x in report.findings
+         if x.issue == "world-writable" and x.path == s),
+        None,
+    )
+    assert ww is not None
+    assert ww.expected_mode == 0o755
+
+
+def test_audit_permissions_symlinks_are_skipped(
+    cfg: ClaudeConfig,
+) -> None:
+    """Symlinks have no meaningful mode and chmod() follows them;
+    skip them entirely so we don't mutate the target."""
+    target = cfg.src_dir / "real.md"
+    target.write_text("ok")
+    target.chmod(0o644)
+    link = cfg.src_dir / "linked.md"
+    link.symlink_to(target)
+    report = cfg.audit_permissions()
+    assert not any(f.path == link for f in report.findings)
+
+
+def test_audit_permissions_skip_git_subtree(
+    cfg: ClaudeConfig,
+) -> None:
+    """`.git/` is internal plumbing; never audit it."""
+    git_dir = cfg.content_dir / ".git"
+    git_dir.mkdir()
+    junk = git_dir / "loose.key"
+    junk.write_text("ignored")
+    junk.chmod(0o666)
+    report = cfg.audit_permissions()
+    assert not any(f.path == junk for f in report.findings)

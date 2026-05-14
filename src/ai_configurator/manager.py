@@ -30,6 +30,7 @@ import json
 import os
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -323,6 +324,62 @@ class ReconcileReport:
 
 
 @dataclass(frozen=True)
+class PermissionFinding:
+    """A single permission/mode issue uncovered by ``audit_permissions``.
+
+    ``issue`` is one of:
+
+    - ``world-writable``: any of the world-write bits set.
+    - ``sensitive-mode-too-open``: a file matching a secret pattern
+      has more than 0o600.
+    - ``not-executable``: a ``scripts/*.sh`` file lacks the user-exec
+      bit (others might intentionally be 0o755).
+    - ``orphan-owner``: file owned by a uid not equal to the current
+      effective uid. Reported only; never fixed (would require sudo).
+
+    ``fixable_by_current_user`` reflects whether the calling user can
+    chmod the path (i.e., owns it). If False, the heal step skips and
+    surfaces a "run as <owner>" hint.
+    """
+
+    path: Path
+    issue: str
+    current_mode: int
+    expected_mode: int
+    fixable_by_current_user: bool
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class HealReport:
+    """Outcome of ``audit_permissions``.
+
+    ``findings`` is everything that was flagged. ``fixed`` is the
+    subset that ``audit_permissions`` actually mutated (only when
+    ``yes=True``). ``skipped`` is findings whose owner isn't the
+    current user; those need ``sudo`` or running the verb as the
+    owning user.
+    """
+
+    findings: list[PermissionFinding] = field(default_factory=list)
+    fixed: list[PermissionFinding] = field(default_factory=list)
+    skipped: list[PermissionFinding] = field(default_factory=list)
+    dry_run: bool = True
+
+    def summary(self) -> str:
+        if not self.findings:
+            return "no permission issues found"
+        parts = [f"{len(self.findings)} finding(s)"]
+        if self.fixed:
+            parts.append(f"{len(self.fixed)} fixed")
+        if self.skipped:
+            parts.append(f"{len(self.skipped)} skipped (not owner)")
+        if self.dry_run:
+            parts.append("(dry-run)")
+        return "; ".join(parts)
+
+
+@dataclass(frozen=True)
 class DecisionFile:
     """A single file inside a bundled decision pack."""
 
@@ -540,6 +597,26 @@ class ProjectInstallReport:
         if self.dry_run:
             parts.append("(dry-run)")
         return "; ".join(parts)
+
+
+def _walk_safe(root: Path) -> Iterable[Path]:
+    """Yield every file and subdirectory under ``root``.
+
+    Skips ``.git`` subtrees and symlinks-to-directories (which would
+    loop or escape the tree). Symlinks themselves are yielded so the
+    permission audit can inspect their mode bits independently of
+    their targets.
+    """
+    if not root.exists():
+        return
+    yield root
+    for cur, dirs, files in os.walk(root, followlinks=False):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        cur_path = Path(cur)
+        for d in dirs:
+            yield cur_path / d
+        for f in files:
+            yield cur_path / f
 
 
 def _format_size(n: int) -> str:
@@ -1917,6 +1994,191 @@ class ClaudeConfig:
         if not full.is_file():
             raise ConfigError(f"{relpath} is not a file")
         return full.read_text(encoding="utf-8")
+
+    # ---- audit_permissions / heal ------------------------------------
+
+    # Mode constants used by the heal logic. Sticky/setuid bits are
+    # intentionally NOT in the expected modes: we'd never set them and
+    # if we find them set, that's a finding of its own.
+    HEAL_SECRET_MODE: ClassVar[int] = 0o600
+    HEAL_FILE_MODE: ClassVar[int] = 0o644
+    HEAL_DIR_MODE: ClassVar[int] = 0o755
+    HEAL_SCRIPT_MODE: ClassVar[int] = 0o755
+
+    def audit_permissions(
+        self,
+        dry_run: bool = True,
+        yes: bool = False,
+    ) -> HealReport:
+        """Audit (and optionally fix) permissions under content_dir.
+
+        Walk ``content_dir`` (and ``target_base`` shallowly, since
+        symlinks themselves don't carry meaningful permissions). Apply
+        the following rules:
+
+        - Files matching ``secret_patterns`` must be ``0o600``. Any
+          looser mode flags ``sensitive-mode-too-open``.
+        - Any file or directory with world-write set
+          (``stat.S_IWOTH``) flags ``world-writable``. Suggested fix
+          narrows to ``0o755`` for dirs / executables, ``0o644`` for
+          regular files.
+        - Files under any ``scripts/`` subtree that look like shell
+          scripts (``.sh``, ``.bash``, ``.zsh``, or a `#!/...sh` first
+          line) but lack the user-exec bit flag ``not-executable``.
+        - Files owned by a uid other than the current effective uid
+          flag ``orphan-owner`` (informational; never fixed: the tool
+          refuses to escalate).
+
+        When ``yes=True`` and ``dry_run=False``, every fixable finding
+        is mutated via ``os.chmod``. Orphan-owner entries are always
+        skipped because chmod-ing files you don't own is a no-op (or
+        an error). The skipped list surfaces those for the user.
+        """
+        findings: list[PermissionFinding] = []
+        my_uid = os.geteuid() if hasattr(os, "geteuid") else -1
+
+        roots = [self._content_dir]
+        for root in roots:
+            if not root.exists():
+                continue
+            for path in _walk_safe(root):
+                findings.extend(
+                    self._inspect_path(path, my_uid=my_uid)
+                )
+
+        fixed: list[PermissionFinding] = []
+        skipped: list[PermissionFinding] = []
+
+        if dry_run or not yes:
+            return HealReport(
+                findings=findings,
+                fixed=fixed,
+                skipped=skipped,
+                dry_run=True,
+            )
+
+        for f in findings:
+            if not f.fixable_by_current_user or f.issue == "orphan-owner":
+                skipped.append(f)
+                continue
+            try:
+                os.chmod(f.path, f.expected_mode)
+            except OSError:
+                skipped.append(f)
+                continue
+            fixed.append(f)
+
+        return HealReport(
+            findings=findings,
+            fixed=fixed,
+            skipped=skipped,
+            dry_run=False,
+        )
+
+    def _inspect_path(
+        self, path: Path, *, my_uid: int
+    ) -> list[PermissionFinding]:
+        """Apply the heal rule set to one path, returning all findings.
+
+        Symlinks are skipped (their mode bits are ignored by most
+        filesystems and chmod() follows them, which would mutate the
+        target). Directories below ``content_dir`` get the dir rules;
+        files get the file rules.
+        """
+        try:
+            st = path.lstat()
+        except OSError:
+            return []
+        if stat.S_ISLNK(st.st_mode):
+            return []
+
+        out: list[PermissionFinding] = []
+        cur_mode = stat.S_IMODE(st.st_mode)
+        is_dir = stat.S_ISDIR(st.st_mode)
+        fixable = (my_uid != -1) and (st.st_uid == my_uid)
+
+        # 1. Orphan-owner (informational only)
+        if my_uid != -1 and st.st_uid != my_uid:
+            out.append(
+                PermissionFinding(
+                    path=path,
+                    issue="orphan-owner",
+                    current_mode=cur_mode,
+                    expected_mode=cur_mode,  # not actionable
+                    fixable_by_current_user=False,
+                    detail=f"owned by uid {st.st_uid}; current uid {my_uid}",
+                )
+            )
+
+        # 2. Sensitive-mode-too-open (files matching secret pattern)
+        if not is_dir and self._matches_secret(path.name):
+            if cur_mode & ~self.HEAL_SECRET_MODE:
+                out.append(
+                    PermissionFinding(
+                        path=path,
+                        issue="sensitive-mode-too-open",
+                        current_mode=cur_mode,
+                        expected_mode=self.HEAL_SECRET_MODE,
+                        fixable_by_current_user=fixable,
+                        detail=(
+                            f"sensitive file; current {oct(cur_mode)}, "
+                            f"expected {oct(self.HEAL_SECRET_MODE)}"
+                        ),
+                    )
+                )
+
+        # 3. World-writable (any of S_IWOTH)
+        elif cur_mode & stat.S_IWOTH:
+            expected = self.HEAL_DIR_MODE if is_dir else self.HEAL_FILE_MODE
+            # Preserve user-exec for files (could be a shell script)
+            if not is_dir and (cur_mode & stat.S_IXUSR):
+                expected = self.HEAL_SCRIPT_MODE
+            out.append(
+                PermissionFinding(
+                    path=path,
+                    issue="world-writable",
+                    current_mode=cur_mode,
+                    expected_mode=expected,
+                    fixable_by_current_user=fixable,
+                    detail=f"narrow to {oct(expected)}",
+                )
+            )
+
+        # 4. Not-executable shell script under scripts/
+        if (
+            not is_dir
+            and "scripts" in path.parts
+            and self._looks_like_shell_script(path)
+            and not (cur_mode & stat.S_IXUSR)
+        ):
+            out.append(
+                PermissionFinding(
+                    path=path,
+                    issue="not-executable",
+                    current_mode=cur_mode,
+                    expected_mode=self.HEAL_SCRIPT_MODE,
+                    fixable_by_current_user=fixable,
+                    detail=f"shell script missing +x; expected {oct(self.HEAL_SCRIPT_MODE)}",
+                )
+            )
+
+        return out
+
+    @staticmethod
+    def _looks_like_shell_script(path: Path) -> bool:
+        """A file is a shell script if its extension suggests it OR
+        its first line starts with a shebang pointing at a shell."""
+        if path.suffix in {".sh", ".bash", ".zsh", ".ksh"}:
+            return True
+        try:
+            with open(path, "rb") as f:
+                first = f.read(64)
+        except OSError:
+            return False
+        if not first.startswith(b"#!"):
+            return False
+        head = first.split(b"\n", 1)[0]
+        return b"sh" in head or b"bash" in head or b"zsh" in head
 
     # ---- doctor -------------------------------------------------------
 

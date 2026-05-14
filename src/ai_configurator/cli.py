@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .manager import ClaudeConfig, ConfigError, Prompter
+from .manager import ClaudeConfig, ConfigError, PermissionFinding, Prompter
 
 # ---------------------------------------------------------------------------
 # Prompting
@@ -229,8 +229,29 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # status / doctor / validate
     sub.add_parser("status", help="Tracked + untracked + git state.")
-    sub.add_parser("doctor", help="Verify symlink health.")
+    p_doctor = sub.add_parser("doctor", help="Verify symlink health.")
+    p_doctor.add_argument(
+        "--heal",
+        action="store_true",
+        help="Also audit permissions and offer fixes (shortcut for `heal --dry-run`).",
+    )
     sub.add_parser("validate", help="Pre-flight environment check.")
+
+    # heal (audit + optionally fix permissions on content dir)
+    p_heal = sub.add_parser(
+        "heal",
+        help="Audit (and optionally fix) permissions on the content dir.",
+    )
+    p_heal.add_argument(
+        "--yes",
+        action="store_true",
+        help="Apply fixes (requires explicit confirmation; default is dry-run).",
+    )
+    p_heal.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show findings without mutating. Default when --yes is absent.",
+    )
 
     # cleanup
     p_clean = sub.add_parser(
@@ -377,6 +398,23 @@ def _print(msg: str, quiet: bool) -> None:
         print(msg)
 
 
+def _print_finding(finding: PermissionFinding) -> None:
+    """One-line representation of a heal finding.
+
+    Format: ``  [issue] path  current=0o644 expected=0o600  (detail)``
+    Orphan-owner entries are tagged with a "not-owner" suffix so the
+    user knows the tool can't fix them.
+    """
+    owner_tag = "" if finding.fixable_by_current_user else "  [not-owner]"
+    print(
+        f"  [{finding.issue}] {finding.path}  "
+        f"current={oct(finding.current_mode)} "
+        f"expected={oct(finding.expected_mode)}{owner_tag}"
+    )
+    if finding.detail:
+        print(f"    {finding.detail}")
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -478,7 +516,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "doctor":
             doctor_report = cfg.doctor()
             print(doctor_report.summary())
+            if getattr(args, "heal", False):
+                heal_report = cfg.audit_permissions()
+                print(heal_report.summary())
+                for finding in heal_report.findings:
+                    _print_finding(finding)
             return 0 if doctor_report.healthy else 1
+
+        if args.cmd == "heal":
+            heal_report = cfg.audit_permissions(
+                dry_run=not args.yes or args.dry_run,
+                yes=args.yes,
+            )
+            print(heal_report.summary())
+            for finding in heal_report.findings:
+                _print_finding(finding)
+            return 1 if heal_report.findings and heal_report.dry_run else 0
 
         if args.cmd == "validate":
             val_report = cfg.validate()

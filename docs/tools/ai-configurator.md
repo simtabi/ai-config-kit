@@ -148,7 +148,7 @@ a git repo.
 ### `doctor`: verify symlink health
 
 ```bash
-ai-configurator doctor
+ai-configurator doctor [--heal]
 ```
 
 Walks every tracked file and confirms the symlink chain resolves
@@ -157,7 +157,37 @@ correctly. Also flags:
 - Orphan symlinks (target gone).
 - Foreign host-overlay symlinks (point into another host's `hosts/` subdir).
 
-Exit code: 0 if healthy; 1 otherwise.
+`--heal` runs the permission audit alongside (see `heal` verb below)
+without applying any fixes. To apply fixes, use the `heal` verb
+directly with `--yes`.
+
+Exit code: 0 if healthy; 1 otherwise. Permission findings under
+`--heal` do not flip the exit code (doctor reports symlink health).
+
+### `heal`: audit + fix permissions on the content dir
+
+```bash
+ai-configurator heal [--yes] [--dry-run]
+```
+
+Walks `content_dir` and reports four classes of issue:
+
+| Issue | Trigger | Suggested fix |
+|---|---|---|
+| `sensitive-mode-too-open` | a file matching a `secret_patterns` entry has mode > `0o600` | narrow to `0o600` |
+| `world-writable` | any path with the world-write bit set | narrow to `0o644` (file) / `0o755` (dir or executable file) |
+| `not-executable` | a shell script under any `scripts/` subtree without user-exec | `0o755` |
+| `orphan-owner` | a file owned by a uid other than the current effective uid | flag only; never fixed (the tool refuses to escalate) |
+
+Defaults to dry-run; reports findings and exits `1` so CI can catch
+permission drift. Pass `--yes` to actually apply fixes (exit `0`
+after a successful sweep). Symlinks are skipped (their mode bits
+are ignored by most filesystems and `chmod()` follows them, which
+would mutate the target). `.git/` subtrees are skipped.
+
+Orphan-owner findings always land in `skipped` even with `--yes`,
+because the tool does not invoke `sudo`. The reported `detail`
+includes the owning uid so you can decide how to handle it.
 
 ### `validate`: pre-flight check
 

@@ -165,7 +165,8 @@ per-project files are never overwritten without `--force`.
 | [`sync`](docs/tools/ai-configurator.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
 | [`track`](docs/tools/ai-configurator.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
 | [`status`](docs/tools/ai-configurator.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |
-| [`doctor`](docs/tools/ai-configurator.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. |
+| [`doctor`](docs/tools/ai-configurator.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. `--heal` also runs the permission audit. |
+| [`heal`](docs/tools/ai-configurator.md#heal-audit--fix-permissions-on-the-content-dir) | Audit + (with `--yes`) fix mode bits on the content dir. Never escalates privilege; orphan-owner findings are flagged but never fixed. |
 | [`validate`](docs/tools/ai-configurator.md#validate--pre-flight-check) | Pre-flight environment check (Python, git, writability). |
 | [`list`](docs/tools/ai-configurator.md#list--grouped-view-of-content) | Grouped tree of content with size + count per group. |
 | [`view`](docs/tools/ai-configurator.md#view--print-a-tracked-file) | Print a tracked file's contents (path-traversal-safe). |
