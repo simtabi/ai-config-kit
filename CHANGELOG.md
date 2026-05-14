@@ -19,10 +19,13 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
 - **Adapters wired**: `claude-code` (global only),
   `aider` (project `AGENTS.md`), `cursor` (project `.cursorrules` +
   global `~/.cursor/rules`), `windsurf` (project `.windsurfrules`),
-  `copilot` (project `.github/copilot-instructions.md`). All four
-  project-file vendors copy from the canonical `AGENTS.md`.
-- **`VENDOR_STATUS` promotions**: aider, cursor, windsurf, copilot
-  move from `planned` to `current`. Codex + cline stay `planned`.
+  `copilot` (project `.github/copilot-instructions.md`),
+  `codex` (project `AGENTS.md` + global `~/.codex/instructions`),
+  `cline` (project `.clinerules`). All non-`claude-code` adapters
+  copy from the canonical `AGENTS.md`.
+- **`VENDOR_STATUS` promotions**: every CLI-based vendor in
+  `SUPPORTED_VENDORS` is now `current`. Only `claude` (web/desktop,
+  partial CLAUDE.md sharing) remains non-current.
 - **New verb `ai-configurator project-install <path>`**: writes
   per-vendor files into a project repo. Respects the configured
   vendors list when `--vendor` isn't passed. Skips existing files
@@ -45,7 +48,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   `cfg.with_vendor_adapter(name, adapter)` redirects an adapter on
   this instance only. Used by tests to point `global_target` at a
   tmp_path so the suite never writes to the real `~/.cursor/rules/`.
-- 21 new tests; total moves from 176 to 197.
+- 24 new tests; total moves from 176 to 200.
 
 ### Renamed
 

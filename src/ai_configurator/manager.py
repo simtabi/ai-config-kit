@@ -730,22 +730,22 @@ class ClaudeConfig:
     # symlink target are accepted into config but flagged as "planned"
     # by ``vendor_status()``.
     SUPPORTED_VENDORS: ClassVar[tuple[str, ...]] = (
-        "claude-code",     # Anthropic Claude Code CLI: fully supported
+        "claude-code",     # Anthropic Claude Code CLI: ~/.claude/ (global)
         "claude",          # Claude.ai web/desktop: partial (CLAUDE.md sharing)
-        "codex",           # OpenAI Codex CLI: planned
-        "cursor",          # Cursor IDE: planned (.cursorrules)
-        "cline",           # Cline (VS Code extension): planned
-        "aider",           # Aider CLI: planned (AGENTS.md)
-        "windsurf",        # Windsurf IDE: planned (.windsurfrules)
-        "copilot",         # GitHub Copilot: planned (.github/copilot-instructions.md)
+        "codex",           # OpenAI Codex CLI: AGENTS.md + ~/.codex/instructions/
+        "cursor",          # Cursor IDE: .cursorrules + ~/.cursor/rules/
+        "cline",           # Cline (VS Code extension): .clinerules
+        "aider",           # Aider CLI: AGENTS.md
+        "windsurf",        # Windsurf IDE: .windsurfrules
+        "copilot",         # GitHub Copilot: .github/copilot-instructions.md
     )
     DEFAULT_VENDORS: ClassVar[tuple[str, ...]] = ("claude-code",)
     VENDOR_STATUS: ClassVar[dict[str, str]] = {
         "claude-code": "current",
         "claude": "partial",
-        "codex": "planned",
+        "codex": "current",
         "cursor": "current",
-        "cline": "planned",
+        "cline": "current",
         "aider": "current",
         "windsurf": "current",
         "copilot": "current",
@@ -801,6 +801,32 @@ class ClaudeConfig:
                 ProjectFile(
                     rel_path=".github/copilot-instructions.md", style="copy"
                 ),
+            ),
+            canonical_source="AGENTS.md",
+        ),
+        "codex": VendorAdapter(
+            name="codex",
+            status="current",
+            global_target=Path.home() / ".codex" / "instructions",
+            project_files=(
+                # Codex reads AGENTS.md natively (announced by OpenAI 2024+).
+                # We don't write a separate codex-specific project file;
+                # aider's AGENTS.md adapter already covers it. Listing
+                # AGENTS.md here makes selecting `codex` alone (without
+                # aider) also drop the canonical into the project.
+                ProjectFile(rel_path="AGENTS.md", style="copy"),
+            ),
+            canonical_source="AGENTS.md",
+        ),
+        "cline": VendorAdapter(
+            name="cline",
+            status="current",
+            global_target=None,
+            project_files=(
+                # Cline reads .clinerules (legacy single file) or
+                # .clinerules/ directory (modern). We write the single
+                # file form; users who prefer the dir layout can rename.
+                ProjectFile(rel_path=".clinerules", style="copy"),
             ),
             canonical_source="AGENTS.md",
         ),

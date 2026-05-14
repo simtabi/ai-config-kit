@@ -1462,14 +1462,16 @@ def test_with_vendors_accepts_known_set(cfg: ClaudeConfig) -> None:
 
 def test_vendor_status_returns_correct_levels(cfg: ClaudeConfig) -> None:
     assert cfg.vendor_status("claude-code") == "current"
-    assert cfg.vendor_status("codex") == "planned"
+    assert cfg.vendor_status("claude") == "partial"
     assert cfg.vendor_status("nope-not-a-vendor") == "unknown"
 
 
-def test_unsupported_vendors_flags_planned(cfg: ClaudeConfig) -> None:
-    cfg.with_vendors(["claude-code", "codex", "cline"])
+def test_unsupported_vendors_flags_non_current(cfg: ClaudeConfig) -> None:
+    """Anything not at 'current' status surfaces in unsupported_vendors().
+    Today that's just 'claude' (web/desktop, partial CLAUDE.md sharing)."""
+    cfg.with_vendors(["claude-code", "claude"])
     unsupp = cfg.unsupported_vendors()
-    assert "codex" in unsupp and "cline" in unsupp
+    assert "claude" in unsupp
     assert "claude-code" not in unsupp
 
 
@@ -1605,10 +1607,11 @@ def test_project_install_skips_planned_vendor_silently(
 ) -> None:
     """A planned-but-unwired vendor (in SUPPORTED_VENDORS but not in
     VENDOR_ADAPTERS) must not fail the run. It surfaces nothing, since
-    the user already saw the 'planned' status during select_vendors."""
+    the user already saw the 'partial' or 'planned' status during
+    select_vendors. ``claude`` is the only remaining example today."""
     project = tmp_path / "myproj"
     project.mkdir()
-    report = cfg.project_install(project, vendors=["codex"])
+    report = cfg.project_install(project, vendors=["claude"])
     assert report.files_written == []
     assert report.files_failed == []
 
@@ -1727,16 +1730,54 @@ def test_windsurf_and_copilot_are_project_only(cfg: ClaudeConfig) -> None:
     assert cfg.VENDOR_ADAPTERS["copilot"].global_target is None
 
 
-def test_vendor_status_promotions_in_slice_2(cfg: ClaudeConfig) -> None:
-    """Slice 2 promotes four vendors to 'current'. Codex + cline + claude
-    stay non-current pending their own slices."""
-    assert cfg.vendor_status("cursor") == "current"
-    assert cfg.vendor_status("windsurf") == "current"
-    assert cfg.vendor_status("copilot") == "current"
-    assert cfg.vendor_status("aider") == "current"
-    # Still not 'current'
-    assert cfg.vendor_status("codex") == "planned"
-    assert cfg.vendor_status("cline") == "planned"
+def test_all_cli_vendors_current_after_codex_cline_wired(
+    cfg: ClaudeConfig,
+) -> None:
+    """Every CLI-based vendor in SUPPORTED_VENDORS is now 'current'.
+    Only 'claude' (web/desktop, partial CLAUDE.md sharing) stays
+    non-current."""
+    for vendor in (
+        "claude-code", "aider", "cursor", "windsurf", "copilot",
+        "codex", "cline",
+    ):
+        assert cfg.vendor_status(vendor) == "current", vendor
+    assert cfg.vendor_status("claude") == "partial"
+
+
+def test_codex_adapter_declares_global_and_agents_md(cfg: ClaudeConfig) -> None:
+    codex = cfg.VENDOR_ADAPTERS["codex"]
+    assert codex.global_target is not None
+    assert codex.global_target.name == "instructions"
+    assert codex.global_target.parent.name == ".codex"
+    assert any(pf.rel_path == "AGENTS.md" for pf in codex.project_files)
+
+
+def test_cline_adapter_writes_clinerules(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# rules\n"
+    )
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["cline"])
+    assert "cline:.clinerules" in report.files_written
+    assert (project / ".clinerules").is_file()
+
+
+def test_codex_project_install_writes_agents_md(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """Selecting codex alone (no aider) should still drop AGENTS.md so
+    Codex's native AGENTS.md support kicks in."""
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# rules\n"
+    )
+    project = tmp_path / "myproj"
+    project.mkdir()
+    report = cfg.project_install(project, vendors=["codex"])
+    assert "codex:AGENTS.md" in report.files_written
+    assert (project / "AGENTS.md").is_file()
 
 
 # --- compose_agents_md (slice 3) ------------------------------------------
