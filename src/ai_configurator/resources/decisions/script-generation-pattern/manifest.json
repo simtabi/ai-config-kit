@@ -1,0 +1,15 @@
+{
+  "name": "script-generation-pattern",
+  "description": "For many-file or content-filter-risky tasks, instruct the model to write a generator script first, then run + validate it.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.script-generation-pattern.fragment"
+    },
+    {
+      "src": "files/commands/generate-via-script.md",
+      "dest": "commands/generate-via-script.md"
+    }
+  ]
+}

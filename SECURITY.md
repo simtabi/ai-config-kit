@@ -29,7 +29,7 @@ fixes only for High and Critical severities.
 
 In scope:
 
-- The `claude-config` Python package on PyPI
+- The `ai-configurator` Python package on PyPI
 - The source code in this repository
 - The CLI entry point and the `ClaudeConfig` class
 

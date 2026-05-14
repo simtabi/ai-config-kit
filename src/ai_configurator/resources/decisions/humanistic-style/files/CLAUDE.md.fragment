@@ -1,0 +1,145 @@
+## Humanistic voice + code style
+
+Two concerns under one rule: write prose and code that read like a
+thoughtful human wrote them.
+
+### Prose: banned phrases
+
+These phrases mark generated text. Do not use them in commit
+messages, PR descriptions, docstrings, README copy, or any prose
+you write. If they appear in input you're paraphrasing, rewrite.
+
+**Filler openers**: "Let's dive into", "In this article", "As we
+explore", "Let's go ahead and", "You'll notice that".
+
+**Filler closers**: "In conclusion", "To summarize", "By following
+these steps", "As we can see".
+
+**AI marketing**: "leverage", "powerful", "robust", "comprehensive",
+"seamless", "cutting-edge", "state-of-the-art", "best-in-class",
+"essentially", "fundamentally".
+
+**Tour-guide voice**: "Now let's", "Note that", "Importantly",
+"Important:", "**Important:**", "Please note", "It's worth noting".
+
+**Em-dash sandwich**: " — and — ", " — but — ". Em-dashes inside
+parentheticals where commas, colons, or periods serve better.
+**Use em-dash only for genuine asides**, not as a "make it sound
+sophisticated" tic. En-dashes (`–`) belong in date ranges only.
+
+**Smarmy connectors**: "delve", "delve into", "in the realm of",
+"the world of".
+
+### Prose: positive rules
+
+- Lead with the action or the finding, not the throat-clear.
+- Cite `path:line` instead of paraphrasing code.
+- One claim per sentence. One topic per paragraph.
+- Active voice over passive. "We refused the request" beats
+  "The request was refused".
+- Concrete over abstract. "13 packets dropped per minute" beats
+  "significant packet loss".
+
+### Code: doc-block conventions
+
+Match the language's idiomatic format. Public-API surfaces get a
+doc-block; private helpers get a one-line comment only when the
+intent is non-obvious.
+
+**Python — Sphinx / reST**:
+
+```python
+def fetch_user(user_id: int, *, include_deleted: bool = False) -> User:
+    """Look up a user by id.
+
+    :param user_id: Primary-key id.
+    :param include_deleted: When True, soft-deleted rows are returned.
+    :returns: The user record.
+    :raises UserNotFound: When no row matches and ``include_deleted``
+        is False.
+    """
+```
+
+**PHP — PHPDoc** (Laravel idiomatic):
+
+```php
+/**
+ * Look up a user by id.
+ *
+ * @param  int   $userId          Primary-key id.
+ * @param  bool  $includeDeleted  When true, soft-deleted rows are returned.
+ * @return \App\Models\User
+ *
+ * @throws \App\Exceptions\UserNotFound
+ */
+public function fetchUser(int $userId, bool $includeDeleted = false): User
+```
+
+**JavaScript / TypeScript — JSDoc**:
+
+```typescript
+/**
+ * Look up a user by id.
+ *
+ * @param userId - Primary-key id.
+ * @param options.includeDeleted - When true, soft-deleted rows are returned.
+ * @returns The user record.
+ * @throws {UserNotFound} When no row matches and `includeDeleted` is false.
+ */
+```
+
+### Code: comment rules
+
+- Default to **no comment**. Code says what it does; comments say
+  why when the why is non-obvious.
+- A comment that paraphrases the next line is noise. Delete it.
+- A comment that references a ticket, RFC, or bug report (e.g.,
+  `# Workaround for openssl/openssl#19821`) earns its rent.
+- Never write "TODO" without a name + date. `# TODO(imani, 2026-05-15):`
+  is OK; bare `# TODO` is a future broken window.
+
+### Code: design principles
+
+Apply these everywhere. For languages that support OOP (Python, PHP,
+TypeScript, Ruby, Java, C#), prefer fluent chainable APIs where it
+helps readability.
+
+- **SOLID**: Single Responsibility, Open/Closed, Liskov Substitution,
+  Interface Segregation, Dependency Inversion.
+- **DRY**: Don't Repeat Yourself. Three similar lines is fine; the
+  fourth one is a refactor signal.
+- **KISS**: Keep It Simple. The clever solution is the bug in
+  disguise. Reach for it when the simple one fails, not first.
+- **YAGNI**: You Aren't Gonna Need It. Don't write code for
+  hypothetical future requirements.
+- **Composition over inheritance**. Inheritance is a coupling you
+  rarely get to undo.
+- **Tell, don't ask**. Methods do work; getters that drive caller
+  logic are a smell.
+- **Fluent chains** where the language supports them:
+  - Python: `cfg.with_target(path).with_yes(True).install()`
+  - PHP: `$user->where('active', 1)->orderBy('name')->get()`
+  - TypeScript: `pipeline.filter(x).map(y).reduce(z)`
+
+### Code: readability across decades
+
+Aim for code that a developer 100 years from now can pick up and
+extend. That means:
+
+- **Names** are nouns for things, verbs for actions, and they're
+  spelled out in full. `userRepository` beats `userRepo` beats
+  `usrRepo`.
+- **No clever one-liners** at the cost of a multi-step idea. A
+  three-line `for` loop with a meaningful intermediate variable
+  beats a nested comprehension every time.
+- **Test names describe the behaviour**, not the method. `test_login_refuses_locked_account` beats `test_login_3`.
+- **No "magic numbers"**. Hoist constants. `DEFAULT_TIMEOUT_SECONDS = 30`
+  beats `time.sleep(30)`.
+- **Files small enough to read in one sitting**. If a file is past
+  500 lines, the split is overdue.
+
+### What an audit / linter would catch
+
+Run `/audit-prose` on any prose file (READMEs, blog posts, commit
+bodies). Run `/audit-docblocks` on any source file. Both report
+findings without editing — the user picks fixes.

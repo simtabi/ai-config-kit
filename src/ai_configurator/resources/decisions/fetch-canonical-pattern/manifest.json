@@ -1,0 +1,15 @@
+{
+  "name": "fetch-canonical-pattern",
+  "description": "For canonical / upstream files (licenses, codes of conduct, etc.), the model must never emit body bytes — use a disk-to-disk download.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.fetch-canonical-pattern.fragment"
+    },
+    {
+      "src": "files/commands/fetch-canonical.md",
+      "dest": "commands/fetch-canonical.md"
+    }
+  ]
+}

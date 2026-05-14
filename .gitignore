@@ -43,3 +43,9 @@ htmlcov/
 # Local scratch
 TODO.local.md
 NOTES.local.md
+
+# Claude Code per-machine + per-repo state
+.claude/settings.local.json
+.claude/sessions/
+.claude/history.jsonl
+.claude/cache/

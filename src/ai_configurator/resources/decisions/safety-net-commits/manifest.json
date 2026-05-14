@@ -1,0 +1,19 @@
+{
+  "name": "safety-net-commits",
+  "description": "Prompt the user to commit a checkpoint before significant operations. Keeps every change reviewable + revertable from git history.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.safety-net-commits.fragment"
+    },
+    {
+      "src": "files/commands/checkpoint-now.md",
+      "dest": "commands/checkpoint-now.md"
+    },
+    {
+      "src": "files/commands/review-changes.md",
+      "dest": "commands/review-changes.md"
+    }
+  ]
+}

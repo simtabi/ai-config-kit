@@ -1,0 +1,100 @@
+## MCP (Model Context Protocol) configuration
+
+MCP servers extend Claude Code with external tools, databases, APIs.
+They run as separate processes that Claude talks to over JSON-RPC.
+See <https://code.claude.com/docs/en/mcp> for the canonical reference.
+
+### Scope (where MCP servers are configured)
+
+| Scope | Location | Shared with |
+|---|---|---|
+| **Managed** | `managed-settings.json` mcpServers | All users on the machine |
+| **User** | `~/.claude/settings.json` mcpServers | All projects, just you |
+| **Project** | `<project>/.mcp.json` | Anyone who checks out the repo |
+| **Local** | `<project>/.claude/settings.local.json` | Just you in this project |
+
+Cited: <https://code.claude.com/docs/en/mcp>. Add via
+`claude mcp add <name> <command> [args...]`.
+
+### Security rules
+
+These are non-negotiable. An MCP server gets the same access the
+user has.
+
+- **Vet the source.** Prefer servers listed in the
+  [Anthropic Directory](https://claude.ai/directory) or published by
+  the `@modelcontextprotocol` org on npm. Anything else, read the
+  code.
+- **Pin by version.** Don't use `latest` or unpinned `@X.Y` ranges
+  in production `.mcp.json`. Pin to an exact version + sha when
+  available.
+- **No secrets in `.mcp.json`.** That file usually gets committed.
+  Pass credentials via env vars; reference them with
+  `"${ENV_VAR_NAME}"` syntax where supported, or via the user-level
+  `~/.claude/settings.json`.
+- **Project-level `.mcp.json` is third-party code.** Review every
+  PR that touches it the same way you'd review a new npm
+  dependency. A typo-squat MCP server is the next vector.
+- **Sandbox where possible.** Filesystem MCP servers should be
+  scoped to a single directory subtree, not `/`. Database MCP
+  servers should connect with a least-privilege user.
+- **Watch the elicitation events.** The `Elicitation` /
+  `ElicitationResult` hook events fire when an MCP server asks the
+  user for input. Audit-log them in security-sensitive projects.
+
+### Safe-to-trust starter list
+
+These are commonly recommended and published by the official org.
+Pin to a real version when you adopt them; the strings below are
+illustrative.
+
+- `@modelcontextprotocol/server-filesystem` — exposes a directory
+  subtree. Scope it tightly.
+- `@modelcontextprotocol/server-git` — git-repo introspection. Read
+  only by default.
+- `@modelcontextprotocol/server-fetch` — HTTP GET / POST. Useful;
+  also a potential SSRF vector if you let it hit internal URLs.
+- `@modelcontextprotocol/server-sqlite` — local SQLite query.
+- `@modelcontextprotocol/server-postgres` — Postgres query. Use a
+  read-only DB user.
+
+### Configuration patterns
+
+**User-level**, in `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "filesystem-home": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/projects"]
+    }
+  }
+}
+```
+
+**Project-level**, in `<project>/.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PAT}"
+      }
+    }
+  }
+}
+```
+
+The first time Claude Code encounters a project `.mcp.json`, it
+shows an approval dialog. Decline if the server isn't in your
+allowlist. Approval persists per-project.
+
+### Auditing
+
+Run `/audit-mcp-config` to enumerate every configured MCP server
++ flag risky patterns (unpinned versions, secrets in repo file,
+overly-broad filesystem scope).

@@ -1,0 +1,155 @@
+## Claude Code authoring best practices (2026)
+
+Distilled from <https://code.claude.com/docs> — current as of
+ai-configurator 0.3.0. Cited inline so you can verify each rule
+at the source.
+
+### Size + structure
+
+- **Target under 200 lines per CLAUDE.md.** Longer files consume
+  more context and reduce adherence. Split large content into
+  [`.claude/rules/`](https://code.claude.com/docs/en/memory#organize-rules-with-claude/rules/)
+  with `paths:` frontmatter so rules only load when matching files
+  are touched.
+- **Use markdown headers and bullets**, not dense paragraphs.
+  Cited: <https://code.claude.com/docs/en/memory#write-effective-instructions>.
+- **Specificity wins**: "Use 2-space indentation" beats "Format code
+  properly". Concrete instructions are verifiable.
+
+### File hierarchy (load order, root → leaf)
+
+1. **Managed policy** (`/Library/Application Support/ClaudeCode/CLAUDE.md`
+   on macOS, `/etc/claude-code/CLAUDE.md` on Linux/WSL,
+   `C:\Program Files\ClaudeCode\CLAUDE.md` on Windows) — IT-controlled.
+2. **User** (`~/.claude/CLAUDE.md`) — personal preferences, all projects.
+3. **Project** (`./CLAUDE.md` or `./.claude/CLAUDE.md`) — committed,
+   team-shared.
+4. **Local** (`./CLAUDE.local.md`) — gitignored, personal-per-project.
+5. **Nested CLAUDE.md** in subdirectories — load on-demand when
+   Claude reads files there.
+
+All files **concatenate, root-down**. Later files can't override
+earlier ones — they accumulate. Avoid conflicts; remove duplicates.
+
+### Imports
+
+`@path/to/file` inline-expands another file at session start. Max
+depth 5. Relative paths resolve to the file containing the import.
+Cited: <https://code.claude.com/docs/en/memory#import-additional-files>.
+
+For shared instructions across worktrees of the same repo:
+
+```text
+# Individual Preferences
+- @~/.claude/my-project-instructions.md
+```
+
+### AGENTS.md compat
+
+Claude Code reads `CLAUDE.md`, **not** `AGENTS.md`. Bridge the two:
+
+```markdown
+@AGENTS.md
+
+## Claude-specific
+- (your additions here)
+```
+
+Or symlink: `ln -s AGENTS.md CLAUDE.md` (on Windows needs Admin /
+Developer Mode).
+
+### Skills (replaces custom slash commands)
+
+As of Claude Code v2.x, `.claude/commands/` files are still honoured,
+but `.claude/skills/<name>/SKILL.md` is the modern equivalent and
+adds:
+
+- A directory for supporting files (templates, scripts, examples).
+- Frontmatter for invocation control (`disable-model-invocation`,
+  `user-invocable`, `context: fork`, `allowed-tools`, `paths`).
+- Auto-loading when relevant to the user's prompt.
+
+Cited: <https://code.claude.com/docs/en/skills>.
+
+**When to use a skill** vs CLAUDE.md content:
+
+- *Reference content* (style guides, conventions) → CLAUDE.md (always loaded).
+- *Multi-step procedures* (deploy, commit, fix-issue) → skill (loads on demand).
+- *Knowledge that's only relevant in some files* → `.claude/rules/` with `paths:`.
+
+**Use `disable-model-invocation: true`** on skills with side
+effects — `/deploy`, `/commit`, `/send-slack-message`. Stops Claude
+from "helpfully" running them.
+
+**Use `context: fork`** on read-heavy skills (research, audits)
+so they run in a forked subagent and don't pollute the main
+context window. Pair with an `agent: Explore` / `agent: Plan`
+designation.
+
+### Hooks vs CLAUDE.md
+
+**CLAUDE.md is context**, delivered as a user message after the
+system prompt. Claude reads it and tries to follow it; there's no
+strict enforcement.
+
+**Hooks are enforced** — they run as shell commands at lifecycle
+events regardless of what Claude decides to do. Use hooks for
+must-run actions like "lint before every commit" or "block PUT
+requests to production".
+
+34 hook events as of 2026; full list at
+<https://code.claude.com/docs/en/hooks>. Notable:
+
+- `PreToolUse` — block / deny / ask / defer tool calls.
+- `UserPromptSubmit` — pre-process or block user input.
+- `PostToolUse` — observability only.
+- `SessionStart` — inject startup context.
+- `PreCompact` / `PostCompact` — last-chance state save before context summary.
+- `InstructionsLoaded` — debug which CLAUDE.md / rules files loaded.
+
+### Auto memory
+
+Claude Code maintains per-project notes at
+`~/.claude/projects/<slug>/memory/MEMORY.md`. The first 200 lines /
+25KB are loaded at every session start.
+
+- **Audit + edit** via `/memory` from a session.
+- **Disable** via `autoMemoryEnabled: false` in settings or
+  `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
+
+### Anti-patterns to avoid
+
+- **No secrets in CLAUDE.md.** It goes to the model on every session.
+- **No conversation paste** (`User said X, I replied Y…`) — move to
+  auto memory or skill body.
+- **No multi-step procedure dumps** — extract to a skill.
+- **No "always do X **and** never do Y" pairs that are easy to
+  conflict** — pick the positive form, drop the negative.
+- **No outdated references**: `commands/` → use `skills/` for new
+  work; `AGENTS.md` not directly read — must be imported.
+
+### `/init` bootstrap
+
+Run `claude /init` in a fresh repo to generate a starting CLAUDE.md.
+It analyses the codebase + reads any `AGENTS.md` / `.cursorrules` /
+`.windsurfrules` and merges relevant parts.
+
+Set `CLAUDE_CODE_NEW_INIT=1` for the interactive multi-phase flow
+that proposes skills + hooks alongside CLAUDE.md.
+
+### HTML-comment trick
+
+`<!-- maintainer note: rotate this token quarterly -->` style
+comments in CLAUDE.md are **stripped before** the content reaches
+the model. Free space for human-only notes.
+
+Cited: <https://code.claude.com/docs/en/memory#how-claude-md-files-load>.
+
+### When `/compact` happens
+
+Project-root CLAUDE.md survives compaction — re-read from disk after
+the summary. Nested CLAUDE.md files in subdirectories do NOT
+re-inject; they reload the next time Claude reads a file there.
+
+If you have a critical rule and `/compact` keeps dropping it, hoist
+it to the project-root CLAUDE.md.

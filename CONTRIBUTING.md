@@ -1,4 +1,4 @@
-# Contributing to claude-config
+# Contributing to ai-configurator
 
 Thanks for considering a contribution. This file captures the rules
 that keep the codebase consistent.
@@ -12,7 +12,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest -q
 ruff check src tests
-mypy src/claude_config
+mypy src/ai_configurator
 ```
 
 All four must be green on every PR. CI re-runs them on macOS +
@@ -81,7 +81,7 @@ Open an issue with:
 - What you ran (exact command line)
 - What happened (output + exit code)
 - What you expected
-- `claude-config status` + `claude-config doctor` output
+- `ai-configurator status` + `ai-configurator doctor` output
 - Python version, OS
 
 ## Reporting security issues

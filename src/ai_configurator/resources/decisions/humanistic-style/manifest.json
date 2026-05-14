@@ -1,0 +1,23 @@
+{
+  "name": "humanistic-style",
+  "description": "Strip AI tells from prose. Use proper doc-blocks (PHPDoc, JSDoc, Sphinx). Follow SOLID/DRY/KISS and fluent-chain OOP where the language supports it.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.humanistic-style.fragment"
+    },
+    {
+      "src": "files/commands/audit-prose.md",
+      "dest": "commands/audit-prose.md"
+    },
+    {
+      "src": "files/commands/audit-docblocks.md",
+      "dest": "commands/audit-docblocks.md"
+    },
+    {
+      "src": "files/banned-phrases.txt",
+      "dest": "humanistic-style/banned-phrases.txt"
+    }
+  ]
+}

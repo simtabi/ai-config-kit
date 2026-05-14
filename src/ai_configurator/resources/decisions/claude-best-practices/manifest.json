@@ -1,0 +1,19 @@
+{
+  "name": "claude-best-practices",
+  "description": "Current (2026) best practices for CLAUDE.md authoring, skills, hooks, and memory — distilled from code.claude.com/docs.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.claude-best-practices.fragment"
+    },
+    {
+      "src": "files/commands/audit-claude-md.md",
+      "dest": "commands/audit-claude-md.md"
+    },
+    {
+      "src": "files/commands/init-rules.md",
+      "dest": "commands/init-rules.md"
+    }
+  ]
+}

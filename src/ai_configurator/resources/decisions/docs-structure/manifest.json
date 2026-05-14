@@ -1,0 +1,19 @@
+{
+  "name": "docs-structure",
+  "description": "Industry-standard repo docs layout: one authoritative README at root, every other prose file under docs/. Required-files set per Simtabi-org rules.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.docs-structure.fragment"
+    },
+    {
+      "src": "files/commands/audit-docs-structure.md",
+      "dest": "commands/audit-docs-structure.md"
+    },
+    {
+      "src": "files/commands/migrate-readmes-to-docs.md",
+      "dest": "commands/migrate-readmes-to-docs.md"
+    }
+  ]
+}

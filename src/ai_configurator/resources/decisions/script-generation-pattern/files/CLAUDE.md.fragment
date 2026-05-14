@@ -1,0 +1,69 @@
+## Generator-script-first for many-file work
+
+For tasks that involve creating ~8 or more files, or files with long
+/ repetitive / sensitive-looking content that risks a content-filter
+policy block, **don't stream all the file contents inline as tool
+outputs**. Use a generator script instead.
+
+### Workflow
+
+1. **Write a small generator** (Python, Bash, etc.) that holds the
+   file contents in source form. Save it under `scripts/` (or
+   `tools/`) in the repo, or `/tmp/` if it's truly one-shot.
+2. **Run it** via Bash. The script writes the files to disk.
+3. **Read back** the generated files to verify they match the design
+   spec — open at least the most structurally important ones.
+4. **Validate** — run the project's lint / type-check / tests / schema
+   check; surface any failure.
+5. **Report** — describe what was generated, what passed, what didn't.
+
+### Why
+
+- A streamed multi-file response can be content-filter-blocked mid-flow,
+  leaving a half-applied tree that's painful to recover from.
+- The script is auditable, editable, and re-runnable. The result is
+  reproducible.
+- The model's role shifts from "emit N file contents" (high token cost,
+  high block risk) to "write the generator + verify the result" — a
+  smaller surface.
+
+### When this pattern doesn't apply
+
+- 3–5 files total.
+- Files with significant unique content (a script would inline the
+  same text anyway).
+- Quick exploration where iteration speed matters more than reliability.
+
+### Template
+
+```python
+#!/usr/bin/env python3
+"""Generator for <task>.
+
+Idempotent — re-running overwrites only the files this script owns.
+"""
+from pathlib import Path
+
+FILES: dict[str, str] = {
+    "path/to/a.py": """<contents>
+""",
+    "path/to/b.py": """<contents>
+""",
+}
+
+
+def main() -> None:
+    for relpath, content in FILES.items():
+        p = Path(relpath)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+        print(f"wrote {relpath}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+For binary or templated content, swap the dict for a `templates/`
+directory + a render loop. For tens of similar files, prefer a single
+template + parameter list over N near-duplicate string literals.

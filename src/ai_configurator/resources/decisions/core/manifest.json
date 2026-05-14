@@ -1,0 +1,9 @@
+{
+  "name": "core",
+  "description": "Skeleton CLAUDE.md + settings.json for a fresh content dir.",
+  "version": "1.0.0",
+  "files": [
+    { "src": "files/CLAUDE.md", "dest": "CLAUDE.md" },
+    { "src": "files/settings.json", "dest": "settings.json" }
+  ]
+}

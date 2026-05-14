@@ -1,0 +1,19 @@
+{
+  "name": "mcp-best-practices",
+  "description": "Configure Model Context Protocol (MCP) servers safely. Cited from code.claude.com/docs/en/mcp. Covers settings.json + .mcp.json, scope, common servers, security caveats.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.mcp-best-practices.fragment"
+    },
+    {
+      "src": "files/commands/audit-mcp-config.md",
+      "dest": "commands/audit-mcp-config.md"
+    },
+    {
+      "src": "files/commands/add-mcp-server.md",
+      "dest": "commands/add-mcp-server.md"
+    }
+  ]
+}

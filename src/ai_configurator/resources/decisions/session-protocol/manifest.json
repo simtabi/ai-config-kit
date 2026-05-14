@@ -1,0 +1,31 @@
+{
+  "name": "session-protocol",
+  "description": "Disciplined session bookends: audit on start, track progress + log failures + research before guessing during work, self-improve on end. Anti-hallucination throughout.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.session-protocol.fragment"
+    },
+    {
+      "src": "files/commands/session-start.md",
+      "dest": "commands/session-start.md"
+    },
+    {
+      "src": "files/commands/session-end.md",
+      "dest": "commands/session-end.md"
+    },
+    {
+      "src": "files/commands/track-progress.md",
+      "dest": "commands/track-progress.md"
+    },
+    {
+      "src": "files/commands/research-source.md",
+      "dest": "commands/research-source.md"
+    },
+    {
+      "src": "files/commands/clarify.md",
+      "dest": "commands/clarify.md"
+    }
+  ]
+}

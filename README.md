@@ -1,399 +1,256 @@
-# claude-config
+# ai-configurator
 
-Manage [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)'s
-`~/.claude/` directory via symlinks from a **versioned content directory**.
+Version your `~/.claude/` directory without versioning your caches.
+
+`ai-configurator` symlinks a content directory you control into
+`~/.claude/` at the paths [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
+expects, ships opinionated "decision packs" that bake in
+content-filter-safe practices, and gives you one verb to set up
+everything on a fresh machine.
 
 ```bash
-pip install claude-config
-
-claude-config init             # create the content dir at ~/.config/claude-config/content/
-claude-config install          # symlink content/claude/* into ~/.claude/*
-claude-config sync --push      # commit + push your content dir
-claude-config doctor           # verify symlinks resolve
+pip install ai-configurator
+ai-configurator bootstrap        # validate + init + install + doctor, one shot
 ```
 
-## What problem this solves
+---
 
-`~/.claude/` mixes config (`CLAUDE.md`, `settings.json`, custom skills,
-accumulated memory files) with caches and session state (`sessions/`,
-`history.jsonl`, `paste-cache/`, `file-history/`, often hundreds of MB).
+## Table of contents
 
-Versioning `~/.claude/` directly is awkward — you'd version-control caches
-or fight with `.gitignore` constantly. **claude-config** keeps your
-canonical config files in a clean directory you fully control, then
-symlinks them into `~/.claude/` at the paths Claude Code expects.
+- [Why it exists](#why-it-exists)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Commands at a glance](#commands-at-a-glance)
+- [Decisions: bundled global rules](#decisions-bundled-global-rules)
+- [The fetch command + canonical-file pattern](#the-fetch-command--canonical-file-pattern)
+- [Multi-machine setup](#multi-machine-setup)
+- [Documentation](#documentation)
+- [Project layout](#project-layout)
+- [Contributing](#contributing)
+- [License](#license)
 
-Edit `~/.claude/CLAUDE.md` from any tool — you're editing the file in
-your content dir. Run `claude-config sync` to commit. Clone your content
-dir on a new machine and `claude-config install` puts everything back.
+---
 
-## Design
+## Why it exists
 
-One class, one config file, one CLI.
+`~/.claude/` is a mixed bag:
 
-```
-~/.config/claude-config/         your content dir (default, configurable)
-├── .git/                         your own private repo (optional)
-├── claude/                       mirrors ~/.claude/ structure
-│   ├── CLAUDE.md                 → ~/.claude/CLAUDE.md
-│   ├── settings.json             → ~/.claude/settings.json
-│   └── projects/<slug>/memory/   → ~/.claude/projects/<slug>/memory/  (dir symlink)
-└── .gitignore                    secret patterns auto-populated
+| Kind | Examples | Worth versioning? |
+|---|---|---|
+| **Config** | `CLAUDE.md`, `settings.json`, `commands/`, `agents/`, `skills/`, `hooks/`, `prompts/`, `projects/*/memory/`, `plugins/blocklist.json` | yes |
+| **Opt-in** | `sessions/`, `history.jsonl` | maybe — grow fast |
+| **Runtime** | `paste-cache/`, `file-history/`, `tasks/`, `todos/`, `cache/`, `plans/`, `statsig/`, `telemetry/` | no |
+| **Secret** | `.credentials.json`, SSH keys, `.npmrc`, `.netrc`, `.env*` | never |
 
-~/.config/claude-config/config.json    persistent settings (optional)
-```
+Putting the whole directory under git means versioning hundreds of MB
+of caches and fighting `.gitignore` every time Claude Code adds a new
+runtime path. `ai-configurator` solves this by keeping your
+canonical config in a content directory (default
+`~/.config/claude-config/content/`), symlinked into `~/.claude/` at
+the right paths. Edit a file in `~/.claude/` and you're editing the
+content dir; commit and push to share across machines.
 
-The single `ClaudeConfig` Python class manages this. The CLI is a thin
-wrapper.
+The classification above is enforced by the install command. See
+[`docs/architecture.md`](docs/architecture.md) for the full table.
+
+---
 
 ## Install
 
 ```bash
-pip install claude-config
-# or
-pipx install claude-config
-# or
-uv tool install claude-config
+pip install ai-configurator
+# or:  pipx install ai-configurator
+# or:  uv tool install ai-configurator
 ```
 
-## First-time setup
+Requirements: Python 3.10+, `git` on `PATH` (only for `init` and
+`sync`). Works on macOS, Linux, and Windows (Windows symlinks need
+either Administrator or Developer Mode). Full install notes in
+[`docs/installation.md`](docs/installation.md).
+
+---
+
+## One-liner install (any platform)
+
+If you have neither `pip` nor `ai-configurator` yet, use the
+[`get-installer`](https://github.com/simtabi/get-installer) bootstrap
+(a sibling Simtabi project):
 
 ```bash
-# Create content dir + git repo + example CLAUDE.md + .gitignore for secrets
-claude-config init
+# POSIX (macOS / Linux / WSL / Git-Bash)
+sh -c "$(curl -fsSL https://get.simtabi.com/install.sh)" -- \
+  --product ai-configurator
 
-# Symlink everything in <content>/claude/ into ~/.claude/
-claude-config install
-
-# Save your settings to a config file for future use
-claude-config init --save
+# PowerShell (Windows)
+irm https://get.simtabi.com/install.ps1 | iex
 ```
 
-To put your content dir somewhere other than `~/.config/claude-config/content`:
+`get-installer` is registry-driven, version-aware, journals every
+action for clean rollback on failure, and refuses to run as root. It
+previously shipped inside this repo at `installer/`; it now lives as
+its own project so other Simtabi tools (and third parties) can vendor
+it. Full design + threat model: <https://github.com/simtabi/get-installer>.
+
+## Quick start (after pip install)
 
 ```bash
-claude-config --content ~/dotfiles/claude init --save
-claude-config install
+ai-configurator bootstrap
 ```
 
-The `--save` writes the choice to `~/.config/claude-config/config.json` so
-future invocations don't need the flag.
+Runs validate → init → install → doctor with prompts. Idempotent —
+safe to re-run on a machine that's already set up. Pass `--push` to
+also commit + push the content dir to its remote, `--remote URL` to
+configure `origin` on a fresh machine, `--dry-run` to see what would
+happen.
 
-## On a new machine
+Once installed:
 
 ```bash
-pip install claude-config
-
-# Clone your content dir from your private repo (replace URL):
-git clone git@github.com:you/my-claude-config.git ~/.config/claude-config/content
-
-# Install symlinks:
-claude-config install
+ai-configurator status              # what's tracked, what's not, git state
+ai-configurator list                # grouped view of everything in content
+ai-configurator view CLAUDE.md      # print a tracked file
+ai-configurator sync -m "tighten X" # commit changes in the content dir
 ```
 
-That's it — `~/.claude/CLAUDE.md` etc. now point at your content.
+---
 
-## Daily flow
+## Commands at a glance
+
+| Verb | What it does |
+|---|---|
+| [`bootstrap`](docs/tools/ai-configurator.md#bootstrap--one-shot-first-time-setup) | One-shot setup (validate + init + install + optional push + doctor). |
+| [`init`](docs/tools/ai-configurator.md#init--create-the-content-dir) | Create the content dir + git repo + apply default decision packs. |
+| [`install`](docs/tools/ai-configurator.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`. |
+| [`uninstall`](docs/tools/ai-configurator.md#uninstall--remove-symlinks) | Remove symlinks; restore pre-install backups. |
+| [`sync`](docs/tools/ai-configurator.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
+| [`track`](docs/tools/ai-configurator.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
+| [`status`](docs/tools/ai-configurator.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |
+| [`doctor`](docs/tools/ai-configurator.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. |
+| [`validate`](docs/tools/ai-configurator.md#validate--pre-flight-check) | Pre-flight environment check (Python, git, writability). |
+| [`list`](docs/tools/ai-configurator.md#list--grouped-view-of-content) | Grouped tree of content with size + count per group. |
+| [`view`](docs/tools/ai-configurator.md#view--print-a-tracked-file) | Print a tracked file's contents (path-traversal-safe). |
+| [`cleanup`](docs/tools/ai-configurator.md#cleanup--remove-noise) | Remove `.DS_Store`, broken symlinks, orphan backups. |
+| [`repair`](docs/tools/ai-configurator.md#repair--heal-a-broken-install) | Cleanup + rebuild symlinks + restore protected backups. |
+| [`decisions`](docs/decisions.md) | List / show / apply bundled global-decision packs. |
+| [`fetch`](docs/tools/ai-configurator.md#fetch--disk-to-disk-download) | Disk-to-disk download of a canonical / upstream text file. |
+
+Every subcommand has `--help`. The full reference lives in
+[`docs/tools/ai-configurator.md`](docs/tools/ai-configurator.md).
+
+---
+
+## Decisions: bundled global rules
+
+`ai-configurator` ships **decision packs** — opinionated bundles
+of `CLAUDE.md` fragments and slash commands that bake in proven
+patterns. Two are auto-applied on `init` (skip with `--no-decisions`):
+
+| Pack | What it ships |
+|---|---|
+| `script-generation-pattern` | Slash command + `CLAUDE.md` fragment that tells the model to use a generator script for many-file / content-filter-risky tasks. |
+| `fetch-canonical-pattern` | `/fetch-canonical` slash command + `CLAUDE.md` fragment for canonical-file downloads (license, code of conduct, etc.) that route URL → disk and never through the response stream. |
 
 ```bash
-# Edit any tracked file through ~/.claude/ — it's a symlink, edits flow
-# straight to the content repo.
-
-claude-config sync                       # commit (auto-message)
-claude-config sync -m "tighten rules"    # custom message
-claude-config sync --push                # commit + push
-claude-config status                     # what's tracked + git state
-claude-config doctor                     # verify symlinks resolve
+ai-configurator decisions list                # show all bundled packs
+ai-configurator decisions show <name>         # print pack details
+ai-configurator decisions apply <name>        # copy into content dir (non-clobbering)
 ```
 
-## Add new files (or directories) to tracking
+Full guide and pack-authoring schema:
+[`docs/decisions.md`](docs/decisions.md).
+
+---
+
+## The `fetch` command + canonical-file pattern
+
+Asking Claude Code to add a `LICENSE`, `CODE_OF_CONDUCT.md`, or any
+other well-known upstream text often trips a content-filter policy
+block. The model's file-write tool streams the body through the
+response, and the filter watches that stream.
+
+`ai-configurator fetch` routes the bytes URL → disk via Python's
+stdlib (`urllib.request`). The response only contains the metadata:
 
 ```bash
-# Single file:
-claude-config track ~/.claude/skills/my-skill.md
-
-# Whole directory (sessions/, custom subdirs, etc.):
-claude-config track ~/.claude/sessions
+ai-configurator fetch https://example.com/license.txt ./LICENSE
+# path=…  bytes=11357  lines=202  sha256=…  status=created  first_line=Apache License
 ```
 
-`track` works on both files and directories. For a directory, it
-moves the directory into the content dir, replaces the original with
-a directory-level symlink, and adds the dir's basename to
-`dir_symlink_names` so future files added inside auto-propagate
-without re-running `install`.
+Atomic write, idempotent, HTTPS-only by default, size cap (1 MiB),
+UTF-8 validation, optional `--expect-sha256`. The bundled
+`fetch-canonical-pattern` decision pack teaches the model to use this
+verb (or `curl -o` as a fallback) automatically.
 
-## Tracking Claude sessions and history (opt-in)
+---
 
-By default, `~/.claude/sessions/` and `~/.claude/history.jsonl` are
-excluded — Claude Code writes to them constantly and they grow fast
-(typically tens to hundreds of MB). Tracking them is fully supported
-but **opt-in**, with two flags:
+## Multi-machine setup
 
-```jsonc
-// ~/.config/claude-config/config.json
-{
-  "include_sessions": true,
-  "include_history":  true
-}
-```
-
-Or via the fluent API:
-
-```python
-ClaudeConfig().with_sessions(True).with_history(True).install()
-```
-
-Or directly via `track`:
+Push the content dir to a private git repo from machine A, then on
+machine B:
 
 ```bash
-claude-config track ~/.claude/sessions          # whole dir
-claude-config track ~/.claude/history.jsonl     # single file
+pip install ai-configurator
+git clone git@github.com:you/my-claude-content.git ~/.config/claude-config/content
+ai-configurator bootstrap
 ```
 
-The tool flips `include_sessions` / `include_history` automatically
-when you `track` the corresponding path.
+The on-disk path stays `~/.config/claude-config/` (not
+`ai-configurator/`) so existing installs keep working. The
+package name is what changed.
 
-### Trade-offs
+---
 
-| Concern | Impact |
-|---------|--------|
-| **Repo size** | Sessions can be hundreds of MB. Every commit grows the repo. Consider [git LFS](https://git-lfs.com/) or periodic squash-and-reset on a separate branch. |
-| **Privacy** | Transcripts contain every prompt and response, including pasted code, file paths, and project context. **Always keep the content repo private.** |
-| **Commit churn** | Sessions append on every Claude run. `claude-config sync` after each session means dozens of commits per day. Practical pattern: nightly cron `claude-config sync -m "nightly snapshot"`. |
-| **Restore semantics** | Cloning the content repo on a new machine and running `install` restores history as Claude Code expects — but past sessions reference paths that may not exist on the new host. Treat as a backup, not a perfect replay. |
+## Documentation
 
-### Recommended cadence
+| Doc | Covers |
+|---|---|
+| [`docs/installation.md`](docs/installation.md) | Install, requirements, CI setup, Windows note |
+| [`docs/configuration.md`](docs/configuration.md) | JSON config schema, env vars, secret patterns, host overlays |
+| [`docs/architecture.md`](docs/architecture.md) | Symlink design, content-dir layout, classification table |
+| [`docs/tools/ai-configurator.md`](docs/tools/ai-configurator.md) | Per-subcommand reference with all flags |
+| [`docs/decisions.md`](docs/decisions.md) | Decision-pack catalogue + schema for authors |
+| [`docs/release.md`](docs/release.md) | Tag-driven release flow, OIDC trusted publishing |
+| [`docs/shipping-checklist.md`](docs/shipping-checklist.md) | One-time + ongoing release prep |
+| Installer (sibling repo) | `https://github.com/simtabi/get-installer` — reusable cross-platform one-liner installer; was here at `installer/` through v0.2.0 |
 
-```bash
-# In a launchd plist / systemd timer / cron, run nightly:
-claude-config sync -m "nightly snapshot" --push
-```
+---
 
-Skip entirely if cross-machine session continuity isn't a goal —
-they're fine being ephemeral.
-
-## Use cases
-
-### 1. Solo developer, single machine
-
-Default setup. `init` then `install`. Content dir in
-`~/.config/claude-config/content/`. Optional git for backup.
-
-```bash
-claude-config init
-claude-config install
-```
-
-### 2. Solo developer, multiple machines (laptop + desktop)
-
-Push content to a **private** GitHub repo. On each new machine:
-
-```bash
-pip install claude-config
-git clone git@github.com:you/my-claude.git ~/.config/claude-config/content
-claude-config install
-```
-
-Edit `~/.claude/CLAUDE.md` on machine A → `sync --push`.
-On machine B: `git pull` (in content dir) → no install needed since
-symlinks already point at the cloned files.
-
-### 3. Team shared baseline + per-developer overrides
-
-Team agrees on a baseline `CLAUDE.md` that lives in a *public* team
-repo. Each developer maintains their own *private* content repo for
-personal additions.
-
-```bash
-# Team-shared baseline (public):
-git clone https://github.com/team/team-claude-baseline.git ~/baseline
-
-# Personal content (private, layered on top — your CLAUDE.md can
-# `## include`-style reference the baseline if you want):
-claude-config init
-cp ~/baseline/CLAUDE.md ~/.config/claude-config/content/claude/CLAUDE.md
-# … then edit to add your personal sections
-claude-config install
-```
-
-### 4. CI / ephemeral environment
-
-For tests that need Claude Code with a specific config, point env
-vars at a checked-out content dir:
-
-```bash
-git clone https://github.com/you/claude-content /tmp/cc
-CLAUDE_CONFIG_CONTENT_DIR=/tmp/cc \
-CLAUDE_CONFIG_TARGET=/tmp/runtime-claude \
-  claude-config install
-```
-
-No global state mutated; the runtime `~/.claude/` equivalent lives
-at `/tmp/runtime-claude/` only for that process tree.
-
-### 5. Programmatic use (inside another tool)
-
-```python
-from claude_config import ClaudeConfig
-
-cfg = (
-    ClaudeConfig()
-    .with_content_dir("./vendored-claude-config")
-    .with_target("./.runtime-claude")
-    .with_sessions(False)  # explicitly ephemeral for tests
-)
-
-report = cfg.install(dry_run=True)
-print(report.summary())
-```
-
-The `ClaudeConfig` class is the full surface — every CLI capability
-is a method. Wrap it inside your own CLI or test fixture without
-shelling out.
-
-### 6. Multi-tenant per-project content
-
-Different content dirs per Claude project:
-
-```bash
-# Project-specific config
-cd ~/projects/project-a
-CLAUDE_CONFIG_CONTENT_DIR=./.claude-content claude-config install
-
-# Different project, different content
-cd ~/projects/project-b
-CLAUDE_CONFIG_CONTENT_DIR=./.claude-content claude-config install
-```
-
-Use a direnv-style `.envrc` per project so the env var follows the cwd.
-
-## Configuration
-
-Every setting has a default. Per-user / per-machine overrides happen
-through **three layers, applied in precedence order** (highest first):
-
-1. **CLI flag** — `--content` / `--target` / `--config`
-2. **Environment variable** — see table below
-3. **JSON config file** — `~/.config/claude-config/config.json`
-4. **Class default** (built in)
-
-Each layer overrides the one beneath it. Most users only need the
-JSON file. Env vars are useful for shell-script automation or
-multi-environment setups. CLI flags are for one-off overrides.
-
-### Environment variables
-
-| Variable | Effect |
-|----------|--------|
-| `CLAUDE_CONFIG_FILE` | Path to the JSON config file. Overrides `--config` and the XDG default. |
-| `CLAUDE_CONFIG_CONTENT_DIR` | Override the content directory. |
-| `CLAUDE_CONFIG_TARGET` | Override the target directory (default `~/.claude`). |
-| `XDG_CONFIG_HOME` | Affects the JSON config file default path (`$XDG_CONFIG_HOME/claude-config/config.json`). |
-
-Example: per-shell content dir for testing without touching your real
-config:
-
-```bash
-CLAUDE_CONFIG_CONTENT_DIR=/tmp/test-content claude-config install --dry-run
-```
-
-### JSON config file
-
-Default path: `${XDG_CONFIG_HOME:-~/.config}/claude-config/config.json`.
-Every field optional — anything missing falls back to a sensible
-default.
-
-```json
-{
-  "content_dir":      "/Users/you/.config/claude-config/content",
-  "target_base":      "/Users/you/.claude",
-  "secret_patterns":  [".credentials.json", "*.key", "*.token", ".env"],
-  "ignore_patterns":  [".DS_Store", "*.swp"],
-  "dir_symlink_names": ["memory"]
-}
-```
-
-| Field | Default | Purpose |
-|-------|---------|---------|
-| `content_dir` | `${XDG_CONFIG_HOME:-~/.config}/claude-config/content` | Where your canonical files live |
-| `target_base` | `~/.claude` | Where Claude Code reads from |
-| `secret_patterns` | credentials, keys, tokens, .env | Refuses to track or symlink anything matching |
-| `ignore_patterns` | `.DS_Store`, swap files | Excluded from install / status / doctor |
-| `dir_symlink_names` | `memory` | These directories get a single dir-level symlink so new files inside auto-propagate |
-
-**Tip — sharing the tool across team members:** the tool itself is
-public and contains no personal data. Each developer keeps their own
-`content_dir` in their own (private) location. The JSON config file
-and the env vars are what distinguishes one user's setup from
-another — neither lives inside the public tool repo.
-
-## Programmatic use
-
-```python
-from claude_config import ClaudeConfig
-
-cfg = (
-    ClaudeConfig()
-    .with_content_dir("~/my-dotfiles/claude")
-    .with_target("~/.claude")
-)
-cfg.init().install()
-
-report = cfg.doctor()
-if not report.healthy:
-    print(report.summary())
-
-cfg.sync(message="bumped CLAUDE.md", push=True)
-```
-
-The class is fluent: every mutator returns `self`. Operations that produce
-data return small frozen dataclasses (`InstallReport`, `DoctorReport`,
-`StatusReport`, `SyncReport`) — single-source-of-truth result types, no
-parsing CLI output.
-
-## Security
-
-- **Secret patterns are blocking, not advisory.** `track` refuses to
-  ingest a file matching any pattern. `install` skips them. `init`
-  pre-populates `.gitignore` in the content dir with the same patterns.
-- **No personal info in this repo.** This package contains only the
-  tool. Your content (CLAUDE.md, memory files, settings.json) lives in
-  *your* directory under *your* git repo. The tool never reads, copies,
-  or transmits content outside the local filesystem operations you ask
-  for.
-- **Keep your content dir's git repo private** — `CLAUDE.md` and memory
-  files typically contain personal identifiers, internal URLs, project
-  context.
-
-## Subcommand reference
+## Project layout
 
 ```
-claude-config init [--no-examples] [--no-git] [--save]
-claude-config install [--dry-run]
-claude-config uninstall
-claude-config sync [-m "message"] [--push]
-claude-config track <path>
-claude-config status
-claude-config doctor
-
-Common options:
-  --config <path>     path to JSON config (default: ~/.config/claude-config/config.json)
-  --content <path>    override content dir
-  --target <path>     override target dir (default: ~/.claude)
-  -V, --version
+ai-configurator/
+├── README.md                       you are here — the single authoritative readme
+├── docs/                           subdocs (lowercase-kebab, linked from README)
+├── src/ai_configurator/        the package
+│   ├── manager.py                  ClaudeConfig class + all report types
+│   ├── cli.py                      thin argparse wrapper
+│   ├── __init__.py                 public API
+│   └── resources/decisions/        bundled decision packs (ships in wheel)
+│       ├── core/
+│       ├── script-generation-pattern/
+│       └── fetch-canonical-pattern/
+├── tests/                          pytest suite (manager + CLI)
+├── pyproject.toml
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── CODE_OF_CONDUCT.md
+└── LICENSE
 ```
 
-## Development
+Per-pack details live next to each pack as `details.md` (shown by
+`ai-configurator decisions show <name>`) — no per-pack README.md
+files to disambiguate from this one.
 
-```bash
-git clone https://github.com/simtabi/claude-configs
-cd claude-configs
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pytest -q
-ruff check src tests
-mypy src/claude_config
-```
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Quality gates: `pytest`,
+`ruff check`, `mypy --strict`. All four pass on PR; CI runs them on
+macOS + Ubuntu × Python 3.10–3.13.
+
+---
 
 ## License
 

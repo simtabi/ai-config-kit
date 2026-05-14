@@ -1,0 +1,94 @@
+## Repo docs structure (industry standard)
+
+Every Simtabi project, and every project I help create or maintain,
+follows this layout.
+
+### Root: only these prose files
+
+GitHub Community-profile recognises specific filenames at the repo
+root. Keep them there; nothing else.
+
+- `README.md` — one authoritative file, professionally designed, with
+  a TOC, install instructions, quick-start, command index, links into
+  `docs/`. Anything that doesn't fit in a top-level README belongs in
+  `docs/`.
+- `CHANGELOG.md` — Keep-a-Changelog format, semver.
+- `CONTRIBUTING.md` — coding conventions, test patterns, PR rules.
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1.
+- `SECURITY.md` — disclosure address + policy.
+- `LICENSE` — no extension.
+
+No `README.<topic>.md` at root. No `INSTALL.md`, `ARCHITECTURE.md`,
+`USAGE.md`, `TODO.md`, `NOTES.md`, `ROADMAP.md` at root. All of those
+go to `docs/`.
+
+### `docs/` layout
+
+Group by audience:
+
+```
+docs/
+├── README.md                      optional index linking subdocs
+├── installation.md                generic install (link from main README)
+├── configuration.md
+├── architecture.md
+├── release.md
+├── shipping-checklist.md
+├── SPEC.md                        design spec + standing agent prompt
+├── api/
+│   └── <generated reference>
+├── architecture/
+│   ├── adr-001-*.md               architecture decision records
+│   └── diagrams/
+├── operators/                     "I'm running this in prod"
+│   ├── deploy-vps.md
+│   ├── deploy-k8s.md
+│   └── observability.md
+├── users/                         "I'm using the CLI / web UI"
+│   ├── getting-started.md
+│   └── troubleshooting.md
+├── contributors/                  "I'm contributing code"
+│   └── repo-conventions.md
+└── tools/
+    └── <slug>.md                  one file per tool / subcommand
+```
+
+When a directory grows past 5 files, split by sub-audience or topic.
+
+### README requirements
+
+- **TOC** at the top. Every section anchor-linked.
+- **Tagline** in one sentence under the H1.
+- **Quick start** with copy-pasteable commands.
+- **At-a-glance feature table** (or commands table for CLIs).
+- **Links into `docs/`** for everything that doesn't fit at root.
+- **License + contributor link** at the bottom.
+- No more than 300 lines. Larger projects split detail into `docs/`.
+
+### `.md` files NOT allowed at root
+
+- `INSTALL.md` → `docs/installation.md`
+- `USAGE.md` → `docs/users/getting-started.md` or `docs/tools/<slug>.md`
+- `ARCHITECTURE.md` → `docs/architecture.md`
+- `ROADMAP.md` → `docs/SPEC.md` (or a separate `docs/roadmap.md`)
+- `TODO.md` / `NOTES.md` → either `docs/SPEC.md` § "issues" or delete
+- `<topic>.md` ad-hoc files → `docs/<grouping>/<topic>.md`
+
+### Strict file-types layout (not just docs)
+
+Same grouping discipline applies to other file types:
+
+- **Tests**: `tests/unit/` + `tests/integration/` + `tests/e2e/`
+  when over 20 test files.
+- **Scripts**: `scripts/` for build / release / migration tooling.
+- **CI**: `.github/workflows/` for GitHub Actions.
+- **Deploy assets**: `deploy/` (Dockerfile, compose, nginx, supervisor).
+- **Schemas / fixtures**: `schemas/` and `fixtures/` for JSON-Schema +
+  test data.
+- **Per-package data**: `src/<package>/resources/` (Python),
+  `resources/` (PHP), `assets/` (JS).
+
+### Auto-discovery rule
+
+When opening a project: run `/audit-docs-structure` to find drift.
+When the audit finds violations: ask the user before fixing.

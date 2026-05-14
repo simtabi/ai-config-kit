@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from claude_config import ClaudeConfig
+from ai_configurator import ClaudeConfig
 
 
 @pytest.fixture

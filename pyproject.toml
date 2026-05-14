@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claude-config"
-version = "0.1.0"
+name = "ai-configurator"
+version = "0.2.0"
 description = "Manage Claude Code's ~/.claude/ via symlinks from a versioned content directory."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -17,6 +17,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -38,19 +39,20 @@ dev = [
 ]
 
 [project.scripts]
-claude-config = "claude_config.cli:main"
+ai-configurator = "ai_configurator.cli:main"
 
 [project.urls]
-Homepage      = "https://opensource.simtabi.com/claude-config"
-Documentation = "https://opensource.simtabi.com/documentation/claude-config"
+Homepage      = "https://opensource.simtabi.com/products/ai-configurator"
+Documentation = "https://opensource.simtabi.com/documentation/ai-configurator"
 Repository    = "https://github.com/simtabi/claude-configs"
 Issues        = "https://github.com/simtabi/claude-configs/issues"
+Changelog     = "https://github.com/simtabi/claude-configs/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/claude_config"]
+packages = ["src/ai_configurator"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/claude_config/py.typed" = "claude_config/py.typed"
+"src/ai_configurator/py.typed" = "ai_configurator/py.typed"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -74,4 +76,4 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["src/claude_config"]
+files = ["src/ai_configurator"]

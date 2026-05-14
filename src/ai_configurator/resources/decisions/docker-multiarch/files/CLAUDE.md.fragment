@@ -1,0 +1,99 @@
+## Multi-arch by default (Docker + Linux installs)
+
+**Skip this entire section if the current project has no
+`Dockerfile`, `Containerfile`, `docker-compose.yml`, `Compose.yml`,
+or `.dockerignore`.** Check with `ls Dockerfile* docker-compose* 2>/dev/null`
+at session start; if nothing matches, this section is inert.
+
+When the project is Docker-based, **every image we build, every
+Linux binary we publish, must run on both Intel/AMD64 and ARM64
+without the user passing `--platform`**.
+
+### Why
+
+- Apple Silicon (M1/M2/M3/M4) is the majority of new developer
+  workstations.
+- AWS Graviton, Ampere, and other ARM cloud instances offer 20–40 %
+  cost savings at parity perf.
+- Raspberry Pi 4+ / Pi 5 and other ARM SBCs are common edge / IoT
+  targets.
+- An `amd64`-only image forces all of the above into slow `qemu`
+  emulation.
+
+### Hard rules
+
+1. **Every `Dockerfile` we write is multi-arch by default**. Use
+   official multi-arch base images (`ubuntu:*`, `python:*-slim`,
+   `node:*-alpine`, `alpine:*`, `debian:*-slim`, etc.) — they
+   already publish `linux/amd64` + `linux/arm64` manifests.
+
+2. **Use the buildx ARGs** when cross-compiling or selecting an
+   arch-specific binary:
+   ```dockerfile
+   FROM --platform=$TARGETPLATFORM ubuntu:26.04
+   ARG TARGETARCH   # amd64 | arm64
+   ARG TARGETOS     # linux
+   ARG BUILDPLATFORM
+   ```
+
+3. **Don't hardcode `--platform=linux/amd64`** in `FROM` lines or
+   compose files. If a base image is amd64-only (rare, usually a
+   sign of a niche or end-of-life image), call it out + find a
+   replacement.
+
+4. **Build with buildx**, not `docker build`:
+   ```bash
+   docker buildx build --platform linux/amd64,linux/arm64 \
+       --tag <image>:<tag> \
+       --push \
+       .
+   ```
+   Don't use `--load` for multi-arch (it only handles one
+   platform); use `--push` to push a manifest list to the registry.
+
+5. **CI builds the matrix**. Use GitHub Actions's
+   `docker/build-push-action@v6` + `docker/setup-buildx-action@v3`
+   + `docker/setup-qemu-action@v3`. Other CIs have equivalents.
+
+6. **Arch detection inside the Dockerfile**: if the build downloads
+   a pre-compiled binary (kubectl, terraform, etc.), use
+   `$TARGETARCH` to pick the right URL:
+   ```dockerfile
+   ARG TARGETARCH
+   RUN case "${TARGETARCH}" in \
+         amd64) curl -fsSL ".../release-linux-amd64.tar.gz" -o /tmp/t.tgz ;; \
+         arm64) curl -fsSL ".../release-linux-arm64.tar.gz" -o /tmp/t.tgz ;; \
+         *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+       esac && tar -xzf /tmp/t.tgz -C /usr/local/bin && rm /tmp/t.tgz
+   ```
+
+7. **Test on at least one ARM host before tagging a release**. GitHub
+   Actions's `ubuntu-24.04-arm` runner is free for public repos.
+
+### For non-Docker Linux installs of the same project
+
+Same intent, different mechanism:
+
+- **Python wheels with C extensions** must publish both
+  `manylinux2014_x86_64` and `manylinux2014_aarch64` wheels (use
+  `cibuildwheel`).
+- **Go / Rust binaries** must be released for `linux-amd64` and
+  `linux-arm64` (use the respective tooling's cross-compile output).
+- **Install scripts** (`curl | sh`) must detect `uname -m` and pick
+  the right artefact:
+  ```bash
+  arch="$(uname -m)"
+  case "$arch" in
+      x86_64|amd64) suffix=linux-amd64 ;;
+      aarch64|arm64) suffix=linux-arm64 ;;
+      *) echo "unsupported arch: $arch" >&2; exit 1 ;;
+  esac
+  ```
+
+### When in doubt
+
+Build, push as a manifest list, and run on both arches in CI before
+declaring done. If something is `amd64`-only for a reason (proprietary
+binary, legacy dependency), **document that reason in the Dockerfile
+as a comment** so the next contributor doesn't try to lift the
+restriction without understanding the cost.

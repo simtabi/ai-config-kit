@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work the way the docs say it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Exact command, exact output, exact expected output.
+      placeholder: |
+        Ran: ai-configurator bootstrap --no-git
+        Saw: ...
+        Expected: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: status-output
+    attributes:
+      label: Status and doctor output
+      description: Paste the output of `ai-configurator status` and `ai-configurator doctor`.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ai-configurator version
+      description: Output of `ai-configurator --version`.
+      placeholder: ai-configurator 0.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: Python 3.12.5
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 14.5 / Ubuntu 24.04
+    validations:
+      required: true

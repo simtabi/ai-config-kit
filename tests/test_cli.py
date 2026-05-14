@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from claude_config.cli import main
+from ai_configurator.cli import main
 
 
 def test_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
@@ -15,7 +15,7 @@ def test_help_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--help"])
     assert exc.value.code == 0
     out = capsys.readouterr().out
-    assert "claude-config" in out
+    assert "ai-configurator" in out
     # Env var section visible in epilog
     assert "CLAUDE_CONFIG_FILE" in out
 
@@ -25,7 +25,7 @@ def test_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--version"])
     assert exc.value.code == 0
     out = capsys.readouterr().out
-    assert "claude-config" in out
+    assert "ai-configurator" in out
 
 
 def test_no_command_exits_two(capsys: pytest.CaptureFixture[str]) -> None:
@@ -140,6 +140,226 @@ def test_track_via_cli(tmp_path: Path) -> None:
     assert rc == 0
     assert (target / "real.md").is_symlink()
     assert (content / "claude" / "real.md").read_text() == "hello"
+
+
+def test_bootstrap_runs_full_sequence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "--yes",
+            "bootstrap", "--no-git", "--dry-run",
+        ]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "bootstrap" in out
+    assert "validate" in out
+    assert "init" in out
+
+
+def test_bootstrap_real_run_zero_exit(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "--yes",
+            "bootstrap", "--no-git",
+        ]
+    )
+    assert rc == 0
+    assert (target / "CLAUDE.md").is_symlink()
+
+
+def test_cleanup_dry_run_default(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    (target / ".DS_Store").write_bytes(b"\x00")
+    rc = main(["--content", str(content), "--target", str(target), "cleanup"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "dry-run" in out
+    assert (target / ".DS_Store").exists()  # not actually deleted
+
+
+def test_cleanup_apply_deletes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    (target / ".DS_Store").write_bytes(b"\x00")
+    rc = main(
+        ["--content", str(content), "--target", str(target), "cleanup", "--apply"]
+    )
+    assert rc == 0
+    assert not (target / ".DS_Store").exists()
+
+
+def test_list_prints_groups(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("x")
+    target.mkdir()
+    rc = main(["--content", str(content), "--target", str(target), "list"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Config files" in out
+    assert "CLAUDE.md" in out
+
+
+def test_view_prints_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("hello\nworld\n")
+    target.mkdir()
+    rc = main(
+        ["--content", str(content), "--target", str(target), "view", "CLAUDE.md"]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "hello" in out
+    assert "world" in out
+
+
+def test_view_with_line_numbers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "x.md").write_text("first\nsecond\n")
+    target.mkdir()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "view", "x.md", "--with-line-numbers",
+        ]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "1  first" in out
+    assert "2  second" in out
+
+
+def test_view_missing_file_exits_two(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main(
+        ["--content", str(content), "--target", str(target), "view", "no.md"]
+    )
+    assert rc == 2
+
+
+def test_validate_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    rc = main(["--content", str(content), "--target", str(target), "validate"])
+    # Should succeed since tmp_path is writable
+    assert rc == 0
+
+
+def test_uninstall_no_restore_flag(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("src")
+    target.mkdir()
+    (target / "CLAUDE.md").write_text("real")
+    main(["--content", str(content), "--target", str(target), "install"])
+    backup = target / "CLAUDE.md.before-claude-config"
+    assert backup.exists()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "uninstall", "--no-restore",
+        ]
+    )
+    assert rc == 0
+    assert backup.exists()  # backup not restored
+    assert not (target / "CLAUDE.md").exists()
+
+
+def test_decisions_list_via_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main(
+        ["--content", str(content), "--target", str(target), "decisions", "list"]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "core" in out
+    assert "script-generation-pattern" in out
+
+
+def test_decisions_apply_via_cli(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "decisions", "apply", "script-generation-pattern",
+        ]
+    )
+    assert rc == 0
+    assert (content / "claude" / "commands" / "generate-via-script.md").is_file()
+
+
+def test_repair_via_cli(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("x")
+    target.mkdir()
+    main(["--content", str(content), "--target", str(target), "install"])
+    (target / "CLAUDE.md").unlink()
+    rc = main(["--content", str(content), "--target", str(target), "repair"])
+    assert rc == 0
+    assert (target / "CLAUDE.md").is_symlink()
+
+
+def test_init_no_decisions_flag(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "init", "--no-git", "--no-decisions",
+        ]
+    )
+    assert rc == 0
+    assert not (content / "claude" / "commands" / "generate-via-script.md").exists()
 
 
 def test_init_save_writes_config(tmp_path: Path) -> None:
