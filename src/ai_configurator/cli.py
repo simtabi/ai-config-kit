@@ -175,6 +175,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser("install", help="Symlink content into ~/.claude/.")
     p_install.add_argument("--dry-run", action="store_true")
 
+    # compose-agents-md (synthesize AGENTS.md from content dir)
+    p_compose = sub.add_parser(
+        "compose-agents-md",
+        help="Synthesize a single AGENTS.md from CLAUDE.md + decision-pack fragments.",
+    )
+    p_compose.add_argument(
+        "-o", "--out", type=Path, default=None,
+        help="Output path (default: <content_dir>/claude/AGENTS.md).",
+    )
+    p_compose.add_argument("--dry-run", action="store_true")
+
     # project-install (per-vendor files into a project repo)
     p_pi = sub.add_parser(
         "project-install",
@@ -426,6 +437,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "install":
             install_report = cfg.install(dry_run=args.dry_run)
             print(("[dry-run] " if args.dry_run else "") + install_report.summary())
+            return 0
+
+        if args.cmd == "compose-agents-md":
+            cr = cfg.compose_agents_md(out_path=args.out, dry_run=args.dry_run)
+            print(cr.summary())
             return 0
 
         if args.cmd == "project-install":
