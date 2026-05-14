@@ -330,10 +330,45 @@ fi
 if [ -n "$OUTPUT" ]; then
     out_dir="$(dirname -- "$OUTPUT")"
     [ -d "$out_dir" ] || mkdir -p "$out_dir"
-    # Write with restrictive umask so secrets don't leak
+    # Write with restrictive umask so secrets don't leak through the
+    # window between cp and chmod.
     umask 077
     cp "$WORK/rendered" "$OUTPUT"
     chmod 600 "$OUTPUT" 2>/dev/null || true
+
+    # Verify: chmod can silently no-op on filesystems that don't honour
+    # POSIX mode bits (FAT, exFAT, some SMB mounts, Docker bind-mounts
+    # to a host that maps everything to a fixed uid). If the output is
+    # still world-readable, warn so the user can move it elsewhere or
+    # accept the risk explicitly. Note: stat -c is GNU, stat -f is BSD;
+    # we use a python or perl fallback if neither is sufficient.
+    mode=""
+    if stat -c '%a' "$OUTPUT" >/dev/null 2>&1; then
+        mode=$(stat -c '%a' "$OUTPUT")
+    elif stat -f '%Mp%Lp' "$OUTPUT" >/dev/null 2>&1; then
+        # BSD/macOS stat: %Lp is the lower 12 bits in octal-ish form.
+        mode=$(stat -f '%Lp' "$OUTPUT")
+    fi
+    if [ -n "$mode" ]; then
+        # Strip leading zeros for consistent compare. Three-digit form.
+        case "$mode" in
+            *[2367]) :;;  # any "other" perm bit set: world-readable
+            *)
+                # Suppress if the file is genuinely 600
+                if [ "$mode" != "600" ] && [ "$mode" != "0600" ]; then
+                    printf 'render-env: warning: output mode is %s (expected 600); filesystem may not honour POSIX mode bits.\n' "$mode" >&2
+                fi
+                ;;
+        esac
+        case "$mode" in
+            *[4567])
+                # Bit 4 (read) set in the "other" octet -> world-readable
+                printf 'render-env: WARNING: %s is world-readable (mode %s). Rendered .env may contain secrets.\n' "$OUTPUT" "$mode" >&2
+                printf '  fixes: chmod 600 %s   OR   relocate to a private directory.\n' "$OUTPUT" >&2
+                ;;
+        esac
+    fi
+
     keys=$(wc -l < "$WORK/rendered" | tr -d ' ')
     printf 'rendered %s key(s) -> %s\n' "$keys" "$OUTPUT" >&2
 else
