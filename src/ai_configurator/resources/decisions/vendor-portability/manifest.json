@@ -1,0 +1,15 @@
+{
+  "name": "vendor-portability",
+  "description": "Write rules once, target multiple AI vendors. Canonical content in AGENTS.md, vendor-specific paths (CLAUDE.md, .cursorrules, AGENTS.md) symlinked or imported.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.vendor-portability.fragment"
+    },
+    {
+      "src": "files/commands/audit-vendor-config.md",
+      "dest": "commands/audit-vendor-config.md"
+    }
+  ]
+}

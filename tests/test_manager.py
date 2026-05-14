@@ -1364,3 +1364,72 @@ def test_safety_net_fragment_requires_explicit_verb(cfg: ClaudeConfig) -> None:
     assert "explicit verb" in body.lower() or "always ask" in body.lower()
     # Forbid silent destructive ops
     assert "without explicit" in body.lower() or "explicit verb" in body.lower()
+
+
+# --- multi-vendor support ------------------------------------------------
+
+
+def test_default_vendor_is_claude_code(cfg: ClaudeConfig) -> None:
+    assert cfg.vendors == ("claude-code",)
+
+
+def test_with_vendors_accepts_known_set(cfg: ClaudeConfig) -> None:
+    cfg.with_vendors(["claude-code", "cursor", "aider"])
+    assert cfg.vendors == ("claude-code", "cursor", "aider")
+
+
+def test_vendor_status_returns_correct_levels(cfg: ClaudeConfig) -> None:
+    assert cfg.vendor_status("claude-code") == "current"
+    assert cfg.vendor_status("cursor") == "planned"
+    assert cfg.vendor_status("nope-not-a-vendor") == "unknown"
+
+
+def test_unsupported_vendors_flags_planned(cfg: ClaudeConfig) -> None:
+    cfg.with_vendors(["claude-code", "cursor", "aider"])
+    unsupp = cfg.unsupported_vendors()
+    assert "cursor" in unsupp and "aider" in unsupp
+    assert "claude-code" not in unsupp
+
+
+def test_select_vendors_uses_defaults_without_prompt(cfg: ClaudeConfig) -> None:
+    """When no Prompter is supplied, fall back to the default vendor set."""
+    chosen = cfg.select_vendors_interactively(prompt=None)
+    assert chosen == cfg.DEFAULT_VENDORS
+
+
+def test_select_vendors_respects_prompter_choices(cfg: ClaudeConfig) -> None:
+    """A prompter that only says yes to specific vendors returns just those."""
+    def picky_prompter(question: str, default: bool) -> bool:
+        return any(name in question for name in ("claude-code", "cursor"))
+
+    chosen = cfg.select_vendors_interactively(prompt=picky_prompter)
+    assert "claude-code" in chosen
+    assert "cursor" in chosen
+    assert "aider" not in chosen
+
+
+def test_select_vendors_falls_back_when_user_picks_none(cfg: ClaudeConfig) -> None:
+    """Refusing every prompt still gives the user the default set, not empty."""
+    chosen = cfg.select_vendors_interactively(
+        prompt=lambda q, d: False,
+    )
+    assert chosen == cfg.DEFAULT_VENDORS
+
+
+def test_vendors_persist_to_config(cfg: ClaudeConfig, tmp_path: Path) -> None:
+    """save_config / from_config round-trip preserves the vendor list."""
+    cfg.with_vendors(["claude-code", "cursor"])
+    out = tmp_path / "saved.json"
+    cfg.save_config(out)
+    cfg2 = ClaudeConfig.from_config(out)
+    assert cfg2.vendors == ("claude-code", "cursor")
+
+
+def test_vendors_default_when_config_has_none(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """An older JSON config without the vendors field still loads cleanly."""
+    out = tmp_path / "old.json"
+    out.write_text(json.dumps({"content_dir": str(tmp_path / "x")}))
+    cfg2 = ClaudeConfig.from_config(out)
+    assert cfg2.vendors == ClaudeConfig.DEFAULT_VENDORS

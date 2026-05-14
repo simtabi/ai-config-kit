@@ -679,6 +679,7 @@ class ClaudeConfig:
         include_history: bool = False,
         relative_symlinks: bool = True,
         auto_reconcile: bool = True,
+        vendors: Iterable[str] | None = None,
     ) -> None:
         if content_dir is None:
             content_dir = os.environ.get(self.ENV_CONTENT_DIR)
@@ -707,6 +708,13 @@ class ClaudeConfig:
         self._include_history: bool = include_history
         self._relative_symlinks: bool = relative_symlinks
         self._auto_reconcile: bool = auto_reconcile
+
+        # Vendor list — which AI coding tools this configurator should
+        # eventually target. Default is just claude-code (the fully-supported
+        # path). Unknown vendors are accepted but flagged via vendor_status().
+        if vendors is None:
+            vendors = self.DEFAULT_VENDORS
+        self._vendors: tuple[str, ...] = tuple(vendors)
 
         # Track which config file (if any) this instance was built from so
         # mutating operations like track() can persist their state changes.
@@ -761,6 +769,7 @@ class ClaudeConfig:
             include_history=bool(data.get("include_history", False)),
             relative_symlinks=bool(data.get("relative_symlinks", True)),
             auto_reconcile=bool(data.get("auto_reconcile", True)),
+            vendors=data.get("vendors") or None,
         )
         cfg._loaded_config_path = path if path.exists() else None
         return cfg
@@ -805,6 +814,42 @@ class ClaudeConfig:
         self._relative_symlinks = enabled
         return self
 
+    def with_vendors(self, vendors: Iterable[str]) -> ClaudeConfig:
+        """Set the list of AI vendors this configurator targets.
+
+        Order is preserved. Unknown vendors are accepted but raise
+        ``ConfigError`` from :py:meth:`vendor_status` so callers can
+        surface them. ``claude-code`` is the only fully-supported
+        vendor in v0.3.x; others are placeholders.
+        """
+        self._vendors = tuple(vendors)
+        return self
+
+    def select_vendors_interactively(
+        self,
+        prompt: Prompter | None = None,
+        *,
+        defaults: Iterable[str] | None = None,
+    ) -> tuple[str, ...]:
+        """Walk the supported-vendor list asking one yes/no per vendor.
+
+        Falls back to ``defaults`` (or ``DEFAULT_VENDORS``) when no
+        prompter is supplied. The user can opt into vendors marked
+        ``planned`` — the configurator just won't yet symlink files for
+        them. Callers should pass the result to :py:meth:`with_vendors`.
+        """
+        default_set = set(defaults or self.DEFAULT_VENDORS)
+        if prompt is None:
+            return tuple(self.DEFAULT_VENDORS)
+        picked: list[str] = []
+        for vendor in self.SUPPORTED_VENDORS:
+            status = self.VENDOR_STATUS.get(vendor, "unknown")
+            suffix = "" if status == "current" else f" [{status}]"
+            default = vendor in default_set
+            if prompt(f"target {vendor}{suffix}?", default):
+                picked.append(vendor)
+        return tuple(picked) if picked else tuple(self.DEFAULT_VENDORS)
+
     # ---- properties ---------------------------------------------------
 
     @property
@@ -848,6 +893,24 @@ class ClaudeConfig:
     def relative_symlinks(self) -> bool:
         return self._relative_symlinks
 
+    @property
+    def vendors(self) -> tuple[str, ...]:
+        """Tuple of AI vendor keys this configurator targets."""
+        return self._vendors
+
+    def vendor_status(self, vendor: str) -> str:
+        """Per-vendor support status: ``current`` | ``partial`` |
+        ``planned`` | ``unknown``."""
+        return self.VENDOR_STATUS.get(vendor, "unknown")
+
+    def unsupported_vendors(self) -> tuple[str, ...]:
+        """Selected vendors that aren't ``current`` yet — surfaces in CLI
+        output so users see what's wired vs what's a placeholder."""
+        return tuple(
+            v for v in self._vendors
+            if self.VENDOR_STATUS.get(v, "unknown") != "current"
+        )
+
     # ---- config persistence -------------------------------------------
 
     def save_config(self, config_path: Path | str | None = None) -> ClaudeConfig:
@@ -882,6 +945,7 @@ class ClaudeConfig:
             "include_history": self._include_history,
             "relative_symlinks": self._relative_symlinks,
             "auto_reconcile": self._auto_reconcile,
+            "vendors": list(self._vendors),
         }
         path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
         self._loaded_config_path = path
@@ -2100,7 +2164,26 @@ class ClaudeConfig:
             detail=val.summary() if val.warnings else "environment ok",
         )
 
-        # 2. Confirm clobber-over-existing-content
+        # 2. Vendor selection (interactive only; non-interactive keeps default)
+        if prompt is not None and not dry_run:
+            chosen = self.select_vendors_interactively(
+                prompt, defaults=self._vendors,
+            )
+            if chosen != self._vendors:
+                self.with_vendors(chosen)
+                if self._loaded_config_path is not None:
+                    self.save_config(self._loaded_config_path)
+                unsupp = self.unsupported_vendors()
+                detail = f"vendors: {', '.join(chosen)}"
+                if unsupp:
+                    detail += f"  (planned, not yet wired: {', '.join(unsupp)})"
+                _step("vendors", ok=True, detail=detail)
+            else:
+                _step("vendors", ok=True, detail=f"vendors: {', '.join(self._vendors)}")
+        else:
+            _step("vendors", ok=True, detail=f"vendors: {', '.join(self._vendors)}")
+
+        # 3. Confirm clobber-over-existing-content
         already_initialized = self.src_dir.exists() and any(self.src_dir.iterdir())
         if (
             already_initialized

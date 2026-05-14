@@ -115,27 +115,50 @@ Two-layer design:
    `claude-config` → `ai-configurator`). Contains the user's
    actual `CLAUDE.md`, `settings.json`, `commands/`, `agents/`, etc.
 
-## 2 — Current state (v0.2.0)
+## 2 — Current state (v0.3.0-dev)
+
+Renamed from `claude-configurator` to `ai-configurator` to reflect the
+broader scope: target any AI coding tool, not just Claude Code.
 
 What's **done**:
 
-1. Core class `ClaudeConfig` with 14 verbs:
+1. Core class `ClaudeConfig` with 16 verbs:
    `bootstrap`, `init`, `install`, `uninstall`, `sync`, `track`,
    `status`, `doctor`, `validate`, `list`, `view`, `cleanup`,
-   `repair`, `fetch`, `decisions {list,show,apply}`.
-2. Decision-pack system at
-   `src/ai_configurator/resources/decisions/<name>/`. Three
-   bundled packs:
-   - `script-generation-pattern` (auto-applied)
-   - `fetch-canonical-pattern` (auto-applied)
-   - `core` (opt-in skeleton)
-3. `fetch` command — disk-to-disk URL → file with SHA256 + atomic
+   `repair`, `fetch`, `reconcile`, `decisions {list,show,apply}`.
+2. **11 bundled decision packs** at
+   `src/ai_configurator/resources/decisions/<name>/`. **10
+   auto-applied on `init`**, 1 opt-in (`core`):
+   - `script-generation-pattern` — generator-script-first for many-file work
+   - `fetch-canonical-pattern` — disk-to-disk canonical-file downloads
+   - `session-protocol` — disciplined session bookends + anti-hallucination
+   - `docker-multiarch` — `linux/amd64 + linux/arm64` from one Dockerfile
+   - `claude-best-practices` — distilled from `code.claude.com/docs`
+   - `humanistic-style` — strip AI tells; PHPDoc / JSDoc / Sphinx
+   - `docs-structure` — one README at root, everything else under `docs/`
+   - `mcp-best-practices` — safe MCP server configuration
+   - `safety-net-commits` — prompt for git checkpoints at safe moments
+   - `vendor-portability` — write-once, target Claude / Cursor / Cline / Codex / Aider / Windsurf / Copilot
+   - `core` (opt-in) — skeleton CLAUDE.md + settings.json
+3. **Multi-vendor support** — `vendors: tuple[str, ...]` on
+   `ClaudeConfig`. Default is `("claude-code",)`. The bootstrap flow
+   prompts the user per-vendor; selected vendors persist to the JSON
+   config. Vendor status table (`current` / `partial` / `planned`)
+   surfaced via `vendor_status()` and `unsupported_vendors()`. Only
+   `claude-code` is fully wired in v0.3.0; other vendors are
+   placeholders for future symlink-target phases.
+4. **Auto-reconcile on upgrade** — `ClaudeConfig.reconcile()` compares
+   the installed package version against `last_applied_version` in the
+   JSON config and re-applies missing auto-apply packs. The CLI runs
+   this on every command; users who `pip install --upgrade
+   ai-configurator` pick up new packs automatically.
+5. `fetch` command — disk-to-disk URL → file with SHA256 + atomic
    write. Stdlib only.
-4. 123 tests passing, ruff + mypy strict clean.
-5. Cross-platform — macOS, Linux, Windows.
-6. CI workflows + Dependabot.
-7. Doc tree under `docs/` (installation, configuration,
-   architecture, release, shipping-checklist, decisions,
+6. **157 tests passing**, ruff + mypy --strict clean.
+7. Cross-platform — macOS, Linux, Windows.
+8. CI workflows + Dependabot.
+9. Doc tree under `docs/` (installation, configuration,
+   architecture, release, shipping-checklist, decisions, SPEC,
    tools/ai-configurator.md).
 
 Known issues / gaps live in §5.
@@ -353,4 +376,6 @@ links. This dual identity is documented in `docs/architecture.md`.
 
 ---
 
-*Last updated 2026-05-14.*
+*Last updated 2026-05-15 — project renamed to ai-configurator, 11
+bundled packs (10 auto-applied), multi-vendor scaffolding, auto-
+reconcile-on-upgrade. 157 tests passing.*
