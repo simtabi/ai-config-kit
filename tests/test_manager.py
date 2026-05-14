@@ -1977,3 +1977,80 @@ def test_with_vendor_adapter_overrides_class_registry(
     assert cfg._adapter_for("cursor") is custom
     # claude-code untouched
     assert cfg._adapter_for("claude-code") is cfg.VENDOR_ADAPTERS["claude-code"]
+
+
+# --- end-to-end smoke (init → compose → project-install) -----------------
+
+
+def test_e2e_multi_vendor_pipeline(tmp_path: Path) -> None:
+    """Full pipeline as a user would experience it:
+
+    1. init() builds the content dir, applies decision packs.
+    2. The user writes their own CLAUDE.md.
+    3. compose-agents-md synthesizes AGENTS.md from CLAUDE.md + packs.
+    4. project-install drops the right files into the project for every
+       configured vendor.
+
+    Validates that the canonical content reaches each vendor's
+    expected destination unchanged."""
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    project = tmp_path / "myproj"
+    project.mkdir()
+
+    cfg = ClaudeConfig(content_dir=content, target_base=target)
+    cfg.with_vendors([
+        "claude-code", "aider", "cursor", "windsurf",
+        "copilot", "codex", "cline",
+    ])
+    cfg.init(init_git=False)
+
+    # Override cursor's global_target to a tmp path so install() doesn't
+    # write to the real ~/.cursor/rules/.
+    cfg.with_vendor_adapter(
+        "cursor", _cursor_adapter_at(tmp_path / "fake-cursor" / "rules")
+    )
+
+    # The user puts their own rules in CLAUDE.md
+    (cfg.src_dir / "CLAUDE.md").write_text(
+        "# project rules\n\nUse 2-space indent.\n"
+    )
+
+    compose_report = cfg.compose_agents_md()
+    agents_md = (cfg.src_dir / "AGENTS.md").read_text(encoding="utf-8")
+    assert "project rules" in agents_md
+    assert ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER in agents_md
+    # init() applied 13 decision packs; their fragments must be in AGENTS.md
+    for marker in (
+        "<!-- from CLAUDE.md.script-generation-pattern.fragment -->",
+        "<!-- from CLAUDE.md.polling-discipline.fragment -->",
+        "<!-- from CLAUDE.md.docker-env-interpolation.fragment -->",
+    ):
+        assert marker in agents_md, marker
+    assert compose_report.bytes_written == len(agents_md.encode("utf-8"))
+
+    pi = cfg.project_install(project)
+    expected_writes = {
+        "aider:AGENTS.md",
+        "cursor:.cursorrules",
+        "windsurf:.windsurfrules",
+        "copilot:.github/copilot-instructions.md",
+        "codex:AGENTS.md",  # codex also lands at AGENTS.md
+        "cline:.clinerules",
+    }
+    # codex + aider both want AGENTS.md. The first one wins; the second
+    # skips because the file now exists. Either order is fine for the
+    # test as long as both are accounted for (written or skipped).
+    accounted = set(pi.files_written) | set(pi.files_skipped)
+    assert expected_writes <= accounted
+
+    # Every vendor's file must contain the user's project rule
+    for rel in (
+        "AGENTS.md", ".cursorrules", ".windsurfrules",
+        ".github/copilot-instructions.md", ".clinerules",
+    ):
+        body = (project / rel).read_text(encoding="utf-8")
+        assert "Use 2-space indent" in body, rel
+
+    # claude-code is global-only; nothing per-project should be written for it
+    assert not any(name.startswith("claude-code:") for name in pi.files_written)

@@ -26,12 +26,36 @@ project-root/
 |---|---|---|---|
 | Claude Code | `CLAUDE.md` or `.claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | Cited: <https://code.claude.com/docs/en/memory> |
 | Claude.ai (web/desktop) | manual paste | manual paste | No native file format |
-| OpenAI Codex CLI | `AGENTS.md` | TBD | Canonical home for AGENTS.md |
+| OpenAI Codex CLI | `AGENTS.md` | `~/.codex/instructions/` | Canonical home for AGENTS.md |
 | Cursor | `.cursorrules` | `~/.cursor/rules` | Project file wins |
 | Cline | `.clinerules` | settings UI | VS Code extension |
 | Aider | `AGENTS.md` + `.aider.conf.yml` | `~/.aider.conf.yml` | Reads `AGENTS.md` natively |
 | Windsurf | `.windsurfrules` | settings UI | |
 | GitHub Copilot | `.github/copilot-instructions.md` | settings UI | Repo-scoped |
+
+### Pattern 0: let `ai-configurator` do it
+
+If `ai-configurator` is installed, skip the manual patterns. One
+command writes `AGENTS.md` + every per-vendor file the project's
+vendor list selects:
+
+```bash
+# Compose the canonical AGENTS.md from CLAUDE.md + decision-pack fragments
+ai-configurator compose-agents-md
+
+# Drop AGENTS.md + .cursorrules + .windsurfrules + .clinerules + ...
+# into <project> based on the configured vendors
+ai-configurator project-install <project> \
+    --vendor=aider --vendor=cursor --vendor=windsurf \
+    --vendor=copilot --vendor=codex --vendor=cline
+```
+
+`project-install` skips existing files unless `--force`. It also
+auto-composes `AGENTS.md` if it isn't on disk yet. Without `--vendor`
+flags, it falls back to the `vendors` field of your loaded config.
+
+The manual patterns below stay valid for users who don't have the
+configurator on this machine.
 
 ### Pattern A: `@AGENTS.md` import (preferred for Claude Code)
 
