@@ -1,12 +1,15 @@
 # ai-configurator
 
 Version your `~/.claude/` directory without versioning your caches.
+Author rules once, ship them to every AI coding agent you use.
 
 `ai-configurator` symlinks a content directory you control into
 `~/.claude/` at the paths [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
 expects, ships opinionated "decision packs" that bake in
-content-filter-safe practices, and gives you one verb to set up
-everything on a fresh machine.
+content-filter-safe practices, and gives you one verb each for
+setting up a fresh machine and dropping cross-vendor rules into any
+project repo. Wired adapters: claude-code, aider, cursor, windsurf,
+copilot, codex, cline.
 
 ```bash
 pip install ai-configurator
@@ -114,13 +117,50 @@ ai-configurator sync -m "tighten X" # commit changes in the content dir
 
 ---
 
+## Multi-vendor: one rules source, every AI agent
+
+`ai-configurator` ships adapters for seven CLI-based AI coding agents.
+Authored rules live once in your content dir; each vendor's expected
+file format gets generated on demand.
+
+```bash
+# Compose the cross-vendor canonical from CLAUDE.md + decision packs
+ai-configurator compose-agents-md
+
+# Drop AGENTS.md, .cursorrules, .windsurfrules, .clinerules, and
+# .github/copilot-instructions.md into a project repo in one shot
+ai-configurator project-install ~/code/my-app \
+    --vendor=aider --vendor=cursor --vendor=windsurf \
+    --vendor=copilot --vendor=codex --vendor=cline
+```
+
+The supported vendors and their conventions:
+
+| Vendor | Project file | Global target |
+|---|---|---|
+| claude-code | — | `~/.claude/` |
+| aider | `AGENTS.md` | — |
+| codex | `AGENTS.md` (native) | `~/.codex/instructions/` |
+| cursor | `.cursorrules` | `~/.cursor/rules/` |
+| cline | `.clinerules` | — |
+| windsurf | `.windsurfrules` | — |
+| copilot | `.github/copilot-instructions.md` | — |
+
+`install` also writes the canonical `AGENTS.md` into each configured
+vendor's global target (currently only cursor benefits). Existing
+per-project files are never overwritten without `--force`.
+
+---
+
 ## Commands at a glance
 
 | Verb | What it does |
 |---|---|
 | [`bootstrap`](docs/tools/ai-configurator.md#bootstrap--one-shot-first-time-setup) | One-shot setup (validate + init + install + optional push + doctor). |
 | [`init`](docs/tools/ai-configurator.md#init--create-the-content-dir) | Create the content dir + git repo + apply default decision packs. |
-| [`install`](docs/tools/ai-configurator.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`. |
+| [`install`](docs/tools/ai-configurator.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`; also drops `AGENTS.md` into each non-claude-code vendor's global target (e.g., `~/.cursor/rules/`). |
+| [`compose-agents-md`](docs/tools/ai-configurator.md#compose-agents-md-synthesize-the-canonical-cross-vendor-file) | Synthesize a single `AGENTS.md` from `CLAUDE.md` + decision-pack fragments. |
+| [`project-install`](docs/tools/ai-configurator.md#project-install-per-vendor-files-for-a-project-repo) | Write per-vendor files (`AGENTS.md`, `.cursorrules`, `.windsurfrules`, ...) into a project repo. |
 | [`uninstall`](docs/tools/ai-configurator.md#uninstall--remove-symlinks) | Remove symlinks; restore pre-install backups. |
 | [`sync`](docs/tools/ai-configurator.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
 | [`track`](docs/tools/ai-configurator.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
