@@ -16,9 +16,11 @@ from ai_configurator import (
     FetchReport,
     InstallReport,
     ListingReport,
+    ProjectFile,
     RepairReport,
     StatusReport,
     ValidationReport,
+    VendorAdapter,
 )
 
 # --- construction + fluent API ---------------------------------------------
@@ -1844,3 +1846,93 @@ def test_project_install_auto_compose_skipped_under_dry_run(
     cfg.project_install(project, vendors=["aider"], dry_run=True)
     # No real write to src_dir even though aider was selected
     assert not (cfg.src_dir / "AGENTS.md").exists()
+
+
+# --- install() global_target propagation (slice 4) ------------------------
+
+
+def _cursor_adapter_at(target: Path) -> VendorAdapter:
+    """A cursor adapter pointed at a sandboxed tmp_path/.cursor/rules/."""
+    return VendorAdapter(
+        name="cursor",
+        status="current",
+        global_target=target,
+        project_files=(
+            ProjectFile(rel_path=".cursorrules", style="copy"),
+        ),
+        canonical_source="AGENTS.md",
+    )
+
+
+def test_install_writes_to_cursor_global_target(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """When cursor is in the configured vendors, install() drops the
+    canonical AGENTS.md into the adapter's global_target."""
+    fake_cursor = tmp_path / "fake-home" / ".cursor" / "rules"
+    cfg.with_vendors(["claude-code", "cursor"])
+    cfg.with_vendor_adapter("cursor", _cursor_adapter_at(fake_cursor))
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# rules\n"
+    )
+    report = cfg.install()
+    assert ("cursor", str(fake_cursor / "agents.md")) in report.global_writes
+    assert (fake_cursor / "agents.md").is_file()
+    assert "# rules" in (fake_cursor / "agents.md").read_text()
+
+
+def test_install_skips_global_writes_when_vendor_not_selected(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """Default vendors=(claude-code,) means no global writes happen even
+    though a cursor override exists. The user must opt in via with_vendors."""
+    fake_cursor = tmp_path / ".cursor" / "rules"
+    cfg.with_vendor_adapter("cursor", _cursor_adapter_at(fake_cursor))
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# x\n"
+    )
+    report = cfg.install()
+    assert report.global_writes == []
+    assert not fake_cursor.exists()
+
+
+def test_install_global_dry_run_writes_nothing(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    fake_cursor = tmp_path / ".cursor" / "rules"
+    cfg.with_vendors(["cursor"])
+    cfg.with_vendor_adapter("cursor", _cursor_adapter_at(fake_cursor))
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# x\n"
+    )
+    report = cfg.install(dry_run=True)
+    # Dest tracked as a would-write
+    assert any(
+        dest.endswith("agents.md") for _, dest in report.global_writes
+    )
+    assert not (fake_cursor / "agents.md").exists()
+
+
+def test_install_global_auto_composes_when_canonical_missing(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """If AGENTS.md isn't in src_dir, install() composes one and then
+    writes to the vendor's global target."""
+    fake_cursor = tmp_path / ".cursor" / "rules"
+    cfg.with_vendors(["cursor"])
+    cfg.with_vendor_adapter("cursor", _cursor_adapter_at(fake_cursor))
+    (cfg.src_dir / "CLAUDE.md").write_text("# user rules\n")
+    cfg.install()
+    body = (fake_cursor / "agents.md").read_text()
+    assert "user rules" in body
+
+
+def test_with_vendor_adapter_overrides_class_registry(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """Instance overrides win when resolving an adapter."""
+    custom = _cursor_adapter_at(tmp_path / "custom")
+    cfg.with_vendor_adapter("cursor", custom)
+    assert cfg._adapter_for("cursor") is custom
+    # claude-code untouched
+    assert cfg._adapter_for("claude-code") is cfg.VENDOR_ADAPTERS["claude-code"]

@@ -71,6 +71,9 @@ class InstallReport:
     skipped_via_dir_symlink: int = 0
     host_overlays_linked: int = 0
     secrets_skipped: int = 0
+    # Slice 4: per-vendor global-target writes (e.g., ~/.cursor/rules/).
+    # Tuples of (vendor, dest_path).
+    global_writes: list[tuple[str, str]] = field(default_factory=list)
 
     def summary(self) -> str:
         parts = [
@@ -84,6 +87,8 @@ class InstallReport:
             parts.append(f"{self.host_overlays_linked} host overlay(s)")
         if self.secrets_skipped:
             parts.append(f"{self.secrets_skipped} secret(s) refused")
+        if self.global_writes:
+            parts.append(f"{len(self.global_writes)} vendor global write(s)")
         return ", ".join(parts)
 
 
@@ -827,6 +832,7 @@ class ClaudeConfig:
         relative_symlinks: bool = True,
         auto_reconcile: bool = True,
         vendors: Iterable[str] | None = None,
+        vendor_adapter_overrides: dict[str, VendorAdapter] | None = None,
     ) -> None:
         if content_dir is None:
             content_dir = os.environ.get(self.ENV_CONTENT_DIR)
@@ -862,6 +868,9 @@ class ClaudeConfig:
         if vendors is None:
             vendors = self.DEFAULT_VENDORS
         self._vendors: tuple[str, ...] = tuple(vendors)
+        self._adapter_overrides: dict[str, VendorAdapter] = dict(
+            vendor_adapter_overrides or {}
+        )
 
         # Track which config file (if any) this instance was built from so
         # mutating operations like track() can persist their state changes.
@@ -970,6 +979,19 @@ class ClaudeConfig:
         vendor in v0.3.x; others are placeholders.
         """
         self._vendors = tuple(vendors)
+        return self
+
+    def with_vendor_adapter(
+        self, vendor: str, adapter: VendorAdapter
+    ) -> ClaudeConfig:
+        """Override the adapter for a single vendor on this instance.
+
+        Useful in tests to redirect ``global_target`` to a tmp_path so
+        ``install()`` doesn't write into the real ``~/.cursor/rules/``.
+        Production callers should configure adapters via the class
+        registry instead.
+        """
+        self._adapter_overrides[vendor] = adapter
         return self
 
     def select_vendors_interactively(
@@ -1270,6 +1292,26 @@ class ClaudeConfig:
                     self._symlink(src, target)
                 overlays += 1
 
+        # Slice 4: write the canonical AGENTS.md into each configured
+        # vendor's global_target (e.g., ~/.cursor/rules/agents.md).
+        # claude-code's global_target is target_base, already handled by
+        # the symlink loop above; skip it here.
+        global_writes: list[tuple[str, str]] = []
+        for vendor in self._vendors:
+            adapter = self._adapter_for(vendor)
+            if (
+                adapter is None
+                or adapter.global_target is None
+                or adapter.name == "claude-code"
+                or adapter.canonical_source is None
+            ):
+                continue
+            try:
+                dest = self._install_global_for_vendor(adapter, dry_run=dry_run)
+            except ConfigError:
+                continue  # missing canonical: surfaced via project_install
+            global_writes.append((vendor, str(dest)))
+
         return InstallReport(
             links_created=links,
             dir_links_created=dirs,
@@ -1278,7 +1320,47 @@ class ClaudeConfig:
             skipped_via_dir_symlink=skipped,
             host_overlays_linked=overlays,
             secrets_skipped=secrets,
+            global_writes=global_writes,
         )
+
+    def _adapter_for(self, vendor: str) -> VendorAdapter | None:
+        """Resolve a vendor name to its adapter.
+
+        Instance overrides win over the class-level registry so tests
+        can redirect ``global_target`` away from real ``~/`` paths.
+        """
+        if vendor in self._adapter_overrides:
+            return self._adapter_overrides[vendor]
+        return self.VENDOR_ADAPTERS.get(vendor)
+
+    def _install_global_for_vendor(
+        self, adapter: VendorAdapter, dry_run: bool
+    ) -> Path:
+        """Drop the canonical content into ``adapter.global_target``.
+
+        Writes a single file (``agents.md``) owned by the configurator,
+        so other rule files the user has in that directory stay
+        untouched. Returns the destination path.
+        """
+        assert adapter.global_target is not None
+        assert adapter.canonical_source is not None
+        source = self.src_dir / adapter.canonical_source
+        if not source.is_file():
+            # Try to compose if AGENTS.md; otherwise surface as missing.
+            if adapter.canonical_source == "AGENTS.md" and not dry_run:
+                with contextlib.suppress(ConfigError):
+                    self.compose_agents_md()
+            if not source.is_file():
+                raise ConfigError(
+                    f"canonical source missing: {source} "
+                    f"(needed for {adapter.name} global install)"
+                )
+        body = source.read_text(encoding="utf-8")
+        dest = adapter.global_target / "agents.md"
+        if not dry_run:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(body, encoding="utf-8")
+        return dest
 
     # ---- AGENTS.md composition ---------------------------------------
 
@@ -1412,7 +1494,7 @@ class ClaudeConfig:
         # canonical exists when each vendor's copy is read.
         if auto_compose and not dry_run:
             need_compose = any(
-                (a := self.VENDOR_ADAPTERS.get(v)) is not None
+                (a := self._adapter_for(v)) is not None
                 and a.canonical_source == "AGENTS.md"
                 and not (self.src_dir / "AGENTS.md").is_file()
                 for v in selected
@@ -1430,7 +1512,7 @@ class ClaudeConfig:
         failed: list[tuple[str, str]] = []
 
         for vendor in selected:
-            adapter = self.VENDOR_ADAPTERS.get(vendor)
+            adapter = self._adapter_for(vendor)
             if adapter is None:
                 # Vendor in SUPPORTED_VENDORS without an adapter yet:
                 # planned, not failed. Skip without surfacing as error.
