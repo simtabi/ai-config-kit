@@ -78,6 +78,15 @@ Before writing code, run a status sweep and report the findings inline.
 7. **Roadmap drift**: for `[x]` items in §4 below, spot-check the
    referenced feature actually exists. For `[ ]` items, spot-check it
    genuinely is not done.
+8. **Vendor adapter integrity**: `VENDOR_ADAPTERS` keys must be a
+   subset of `SUPPORTED_VENDORS`. Each adapter with `global_target`
+   under `Path.home()` must be redirectable via `with_vendor_adapter`
+   so tests never write to a real `~/.cursor/rules/` etc.
+9. **Decision pack surface**: every entry in
+   `DEFAULT_DECISIONS_ON_INIT` must have a corresponding directory
+   under `resources/decisions/` with a `manifest.json` and at least
+   one file. `decisions list` must show the same count.
+10. **AI-tell prose check**: `grep -rniE 'leverage|seamless|essentially|note that|simply,|comprehensive|robust\b|delve into' docs/ README.md CHANGELOG.md src/ai_configurator/resources/decisions/` returns only banned-list mentions, not actual prose. Em-dash sandwich (` — `) also zero in prose (table-cell em-dashes and the audit-prose grep pattern are intentional exceptions).
 
 Five-line summary at the top of your first response, then proceed
 with the user's request.
@@ -122,31 +131,37 @@ broader scope: target any AI coding tool, not just Claude Code.
 
 What's **done**:
 
-1. Core class `ClaudeConfig` with 16 verbs:
+1. Core class `ClaudeConfig` with 18 verbs:
    `bootstrap`, `init`, `install`, `uninstall`, `sync`, `track`,
    `status`, `doctor`, `validate`, `list`, `view`, `cleanup`,
-   `repair`, `fetch`, `reconcile`, `decisions {list,show,apply}`.
-2. **11 bundled decision packs** at
-   `src/ai_configurator/resources/decisions/<name>/`. **10
+   `repair`, `fetch`, `reconcile`,
+   `compose-agents-md`, `project-install`,
+   `decisions {list,show,apply}`.
+2. **13 bundled decision packs** at
+   `src/ai_configurator/resources/decisions/<name>/`. **12
    auto-applied on `init`**, 1 opt-in (`core`):
    - `script-generation-pattern`: generator-script-first for many-file work
    - `fetch-canonical-pattern`: disk-to-disk canonical-file downloads
    - `session-protocol`: disciplined session bookends + anti-hallucination
    - `docker-multiarch`: `linux/amd64 + linux/arm64` from one Dockerfile
+   - `docker-env-interpolation`: render-env.sh flattens layered .env files
    - `claude-best-practices`: distilled from `code.claude.com/docs`
    - `humanistic-style`: strip AI tells; PHPDoc / JSDoc / Sphinx
    - `docs-structure`: one README at root, everything else under `docs/`
    - `mcp-best-practices`: safe MCP server configuration
    - `safety-net-commits`: prompt for git checkpoints at safe moments
    - `vendor-portability`: write-once, target Claude / Cursor / Cline / Codex / Aider / Windsurf / Copilot
+   - `polling-discipline`: "don't chain sleeps"; surfaces Monitor + Bash run_in_background + ScheduleWakeup
    - `core` (opt-in): skeleton CLAUDE.md + settings.json
 3. **Multi-vendor support**: `vendors: tuple[str, ...]` on
    `ClaudeConfig`. Default is `("claude-code",)`. The bootstrap flow
    prompts the user per-vendor; selected vendors persist to the JSON
-   config. Vendor status table (`current` / `partial` / `planned`)
-   surfaced via `vendor_status()` and `unsupported_vendors()`. Only
-   `claude-code` is fully wired in v0.3.0; other vendors are
-   placeholders for future symlink-target phases.
+   config. Seven CLI-based vendors are now `current` (claude-code,
+   aider, codex, cursor, cline, windsurf, copilot); `claude`
+   (web/desktop) stays `partial`. `VendorAdapter` registry maps each
+   to its global target (`~/.cursor/rules/`, `~/.codex/instructions/`,
+   etc.) and per-project files (`AGENTS.md`, `.cursorrules`,
+   `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`).
 4. **Auto-reconcile on upgrade**: `ClaudeConfig.reconcile()` compares
    the installed package version against `last_applied_version` in the
    JSON config and re-applies missing auto-apply packs. The CLI runs
@@ -421,6 +436,8 @@ links. This dual identity is documented in `docs/architecture.md`.
 
 ---
 
-*Last updated 2026-05-15: project renamed to ai-configurator, 11
-bundled packs (10 auto-applied), multi-vendor scaffolding, auto-
-reconcile-on-upgrade. 157 tests passing.*
+*Last updated 2026-05-15: project renamed to ai-configurator, 13
+bundled packs (12 auto-applied), multi-vendor end-to-end (seven CLI
+vendors wired via `VendorAdapter`), `compose-agents-md` +
+`project-install` verbs, auto-reconcile-on-upgrade, Homebrew tap
+formula shipped. 206 tests passing.*

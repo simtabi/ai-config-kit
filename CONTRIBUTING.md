@@ -35,6 +35,17 @@ These keep the surface area small and predictable.
 6. **Secrets are blocking, not advisory.** Never narrow the secret-
    pattern enforcement. New secret-looking patterns can be added,
    never removed without a major version bump.
+7. **Vendor adapters live in one registry.** New AI-agent support
+   adds a `VendorAdapter` entry to `VENDOR_ADAPTERS` and bumps
+   `VENDOR_STATUS`. Adapters declaring `global_target` under
+   `Path.home()` must be redirectable via `with_vendor_adapter`
+   so the test suite never writes to a real `~/.cursor/rules/`
+   etc.
+8. **Canonical rules live in AGENTS.md, not per-vendor copies.**
+   `compose-agents-md` synthesizes it from `CLAUDE.md` plus the
+   decision-pack fragments. Per-vendor files are produced by copy
+   from that single source; never hand-edit `.cursorrules`,
+   `.windsurfrules`, etc. in this repo's content dir.
 
 ## Coding conventions
 

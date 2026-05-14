@@ -10,8 +10,9 @@
   or **Developer Mode enabled** (Settings → Privacy & security →
   For developers). Without it, `install` will fail with
   `OSError: [WinError 1314]`. The `fetch`, `cleanup`, `list`,
-  `view`, `decisions`, and `validate` subcommands all work without
-  symlink permission.
+  `view`, `decisions`, `validate`, `compose-agents-md`, and
+  `project-install` subcommands all work without symlink permission
+  (the last two write regular files into a project directory).
 
 ## Install the CLI
 

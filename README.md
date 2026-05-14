@@ -138,13 +138,13 @@ The supported vendors and their conventions:
 
 | Vendor | Project file | Global target |
 |---|---|---|
-| claude-code | — | `~/.claude/` |
-| aider | `AGENTS.md` | — |
+| claude-code | (none) | `~/.claude/` |
+| aider | `AGENTS.md` | (none) |
 | codex | `AGENTS.md` (native) | `~/.codex/instructions/` |
 | cursor | `.cursorrules` | `~/.cursor/rules/` |
-| cline | `.clinerules` | — |
-| windsurf | `.windsurfrules` | — |
-| copilot | `.github/copilot-instructions.md` | — |
+| cline | `.clinerules` | (none) |
+| windsurf | `.windsurfrules` | (none) |
+| copilot | `.github/copilot-instructions.md` | (none) |
 
 `install` also writes the canonical `AGENTS.md` into each configured
 vendor's global target (currently only cursor benefits). Existing
