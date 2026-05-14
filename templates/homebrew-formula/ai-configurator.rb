@@ -26,7 +26,7 @@ class AiConfigurator < Formula
 
   desc "Symlink-manage ~/.claude and ship cross-vendor AI agent rules"
   homepage "https://opensource.simtabi.com/products/ai-configurator"
-  url "https://files.pythonhosted.org/packages/source/a/ai-configurator/ai_configurator-0.2.0.tar.gz"
+  url "https://files.pythonhosted.org/packages/source/a/ai-configurator/ai_configurator-0.3.0.tar.gz"
   sha256 "REPLACE_WITH_PYPI_SDIST_SHA256_ON_RELEASE"
   license "MIT"
   head "https://github.com/simtabi/claude-configs.git", branch: "main"

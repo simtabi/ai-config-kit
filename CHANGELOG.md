@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-14
+
 ### Added: Homebrew tap distribution channel
 
 - `templates/homebrew-formula/ai-configurator.rb`: ready-to-ship
@@ -389,6 +391,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   a secret pattern.
 - `view` refuses path-traversal (`../`).
 
+[0.3.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.3.0
 [0.2.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.2.0
 
 ## [0.1.0] - Initial release
