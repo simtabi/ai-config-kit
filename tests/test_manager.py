@@ -1299,6 +1299,7 @@ def test_reconcile_if_enabled_skips_when_no_config(cfg: ClaudeConfig) -> None:
     "safety-net-commits",
     "vendor-portability",
     "docker-env-interpolation",
+    "polling-discipline",
 ])
 def test_new_packs_listed(cfg: ClaudeConfig, pack: str) -> None:
     listing = cfg.decisions_list()
@@ -1396,6 +1397,35 @@ def test_docker_env_interpolation_fragment_documents_precedence(
     # Invocation no longer goes through python3
     assert "python3" not in body
     assert "render-env.sh" in body
+
+
+def test_polling_discipline_fragment_lists_three_primitives(
+    cfg: ClaudeConfig,
+) -> None:
+    """The fragment must name all three valid waiting primitives so an
+    agent can pick correctly: Monitor + until-loop, Bash
+    run_in_background, ScheduleWakeup. Regression guard against the
+    rule getting shortened to just one option."""
+    cfg.init(init_git=False)
+    body = (cfg.src_dir / "CLAUDE.md.polling-discipline.fragment").read_text(
+        encoding="utf-8"
+    )
+    assert "until" in body and "do sleep" in body  # until-loop pattern
+    assert "run_in_background" in body
+    assert "ScheduleWakeup" in body
+    # Must also name the failure mode it guards against
+    assert "chain" in body.lower() and "sleep" in body.lower()
+
+
+def test_polling_discipline_slash_command_ships(cfg: ClaudeConfig) -> None:
+    cfg.init(init_git=False)
+    cmd = cfg.src_dir / "commands" / "wait-for.md"
+    assert cmd.is_file()
+    body = cmd.read_text(encoding="utf-8")
+    # The four situation buckets the command branches on
+    for tag in ("Command I started", "External state change",
+                "Fixed delay", "long idle"):
+        assert tag.lower() in body.lower(), f"missing situation: {tag}"
 
 
 def test_decision_mode_field_applies_to_dest(

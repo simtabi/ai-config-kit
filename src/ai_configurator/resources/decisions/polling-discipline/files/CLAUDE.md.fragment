@@ -1,0 +1,70 @@
+## Waiting + polling (Claude Code runtime)
+
+**Never chain `sleep` commands as a polling mechanism.** The Claude
+Code runtime blocks patterns like `sleep 25 && check-state` because
+they burn the prompt cache TTL (5 min) repeatedly without amortizing
+the cost. The block message looks like:
+
+```
+Blocked: sleep 25 followed by: gh run list ...
+To wait for a condition, use Monitor with an until-loop (e.g.
+`until <check>; do sleep 2; done`). To wait for a command you
+started, use run_in_background: true. Do not chain shorter sleeps
+to work around this block.
+```
+
+Reach for the right primitive **before** hitting the block.
+
+### Pick the primitive
+
+| Situation | Use |
+|---|---|
+| Waiting for an external condition (a file appears, a remote job finishes, a port responds) | Monitor tool with an `until`-loop |
+| Waiting for a command you just started yourself | Bash with `run_in_background: true` |
+| Polling for a long external event in `/loop` skill | `ScheduleWakeup(delaySeconds)` |
+| Genuine fixed delay you need (e.g. rate-limit gap) under 5 min | Single `sleep <N>` is fine |
+
+### Monitor + until-loop
+
+For "wait until X is true":
+
+```bash
+until <check-that-exits-nonzero-until-condition-met>; do sleep 2; done
+```
+
+Wrap with Monitor so the harness streams each stdout line as a
+notification. When the loop exits, you get notified.
+
+### Bash run_in_background
+
+For "I just kicked off `pytest` / `bun build` / a long migration and
+need to know when it finishes":
+
+```
+Bash(command="pytest tests -q", run_in_background=true)
+```
+
+Do **not** start the command then sleep-poll its log. The runtime
+notifies you on completion.
+
+### ScheduleWakeup in /loop
+
+For the dynamic-pacing `/loop` skill, pick `delaySeconds` around
+cache boundaries:
+
+- **60–270s** keeps the prompt cache warm (under 5 min TTL).
+- **1200–1800s** (20–30 min) amortizes a single cache miss for a
+  long idle period.
+- **Never 300s** — pays the cache miss without amortizing it.
+
+### Don't reach for these to dodge the block
+
+- Splitting `sleep 30` into `sleep 10; sleep 10; sleep 10` (the
+  runtime detects chained sleeps).
+- `time.sleep()` inside a Python one-liner via Bash (same penalty,
+  same block).
+- A loop with no exit condition (`while true; do sleep 1; ...` with
+  no until clause).
+
+The block is policy, not noise. Treat it as guidance to a
+better-shaped primitive.

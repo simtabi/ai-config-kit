@@ -1,0 +1,15 @@
+{
+  "name": "polling-discipline",
+  "description": "Stop chained-sleep polling before the harness blocks it. Teaches agents to reach for Monitor with an until-loop, Bash run_in_background, or ScheduleWakeup.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.polling-discipline.fragment"
+    },
+    {
+      "src": "files/commands/wait-for.md",
+      "dest": "commands/wait-for.md"
+    }
+  ]
+}

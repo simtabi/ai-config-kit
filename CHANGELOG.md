@@ -58,6 +58,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`vendor-portability`** (auto-applied): AGENTS.md canonical
   pattern for cross-vendor portability between Claude / Codex /
   Cursor / Cline / Aider / Windsurf / Copilot.
+- **`polling-discipline`** (auto-applied): stops the chained-sleep
+  polling anti-pattern before the Claude Code runtime blocks it.
+  Documents the three correct primitives (Monitor + until-loop,
+  Bash `run_in_background`, `ScheduleWakeup`) and which to reach
+  for in each waiting scenario. Ships a `/wait-for` slash command
+  that proposes the right primitive without executing. Reaches
+  existing installs on next CLI run because the pack is brand-new
+  and reconcile's non-clobbering apply ships new dest files freely.
 
 ### Added — decision-pack `mode` field
 
@@ -69,14 +77,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- `DEFAULT_DECISIONS_ON_INIT` now includes 11 packs (was 9):
+- `DEFAULT_DECISIONS_ON_INIT` now includes 12 packs (was 9):
   `script-generation-pattern`, `fetch-canonical-pattern`,
   `session-protocol`, `docker-multiarch`,
   `docker-env-interpolation`, `claude-best-practices`,
   `humanistic-style`, `docs-structure`, `mcp-best-practices`,
-  `safety-net-commits`, `vendor-portability`. The `core` pack
-  stays opt-in.
-- `decisions list` now shows 12 bundled packs (1 opt-in + 11 auto).
+  `safety-net-commits`, `vendor-portability`,
+  `polling-discipline`. The `core` pack stays opt-in.
+- `decisions list` now shows 13 bundled packs (1 opt-in + 12 auto).
 
 ### Added — auto-reconcile-on-upgrade
 
