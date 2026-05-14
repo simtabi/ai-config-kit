@@ -236,6 +236,51 @@ keeping it for back-compat).
       audit their own changes later. (Distinct from the get-installer
       audit beacons.)
 
+### Phase H: Multi-vendor ✔ 2026-05-14
+
+`ai-configurator` now targets seven CLI-based AI coding agents:
+`claude-code`, `aider`, `codex`, `cursor`, `cline`, `windsurf`,
+`copilot`. Each is declared in a `VendorAdapter` registry with its
+own global target (`~/.cursor/rules/`, `~/.codex/instructions/`, etc.)
+and per-project files (`AGENTS.md`, `.cursorrules`, `.windsurfrules`,
+`.clinerules`, `.github/copilot-instructions.md`).
+
+- [x] `VendorAdapter` + `ProjectFile` data model (`manager.py`).
+- [x] `compose-agents-md` verb: builds the canonical `AGENTS.md` from
+      the user's `CLAUDE.md` + every `CLAUDE.md.*.fragment` shipped
+      by decision packs. Output carries an autogen marker; refuses
+      to clobber hand-edited files.
+- [x] `project-install <path>` verb: writes per-vendor files into a
+      project repo. Falls back to the configured vendors list when
+      `--vendor` omitted. Auto-composes `AGENTS.md` if missing.
+- [x] `install` extension: drops the canonical into each non-
+      `claude-code` vendor's `global_target` (currently cursor +
+      codex).
+- [x] `with_vendor_adapter` test override so the suite doesn't write
+      to the real `~/.cursor/rules/`.
+- [x] `vendor-portability` decision pack: `Pattern 0` points users
+      at the new verbs; manual patterns retained for users without
+      the configurator installed.
+- [x] End-to-end smoke test: init → compose → project-install
+      asserts the user's `CLAUDE.md` content reaches every vendor's
+      expected destination unchanged.
+
+Status matrix at v0.3.0:
+- `current`: claude-code, aider, codex, cursor, cline, windsurf, copilot
+- `partial`: claude (Claude.ai web/desktop, manual CLAUDE.md sharing)
+
+### Phase I: Homebrew tap distribution ✔ 2026-05-14
+
+- [x] `templates/homebrew-formula/ai-configurator.rb`: ready-to-ship
+      live formula for `simtabi/homebrew-tap/Formula/`. Stdlib-only,
+      depends_on python@3.13, `test do` exercises `--version`,
+      `decisions list`, and `--help` (which must include the
+      multi-vendor verbs).
+- [x] `docs/distribution/homebrew.md`: one-time tap setup
+      (`brew tap-new`, `brew create --python`,
+      `brew update-python-resources`) plus the release-time bump
+      workflow.
+
 ## 5: Open issues / known bugs
 
 | # | Where | Issue |

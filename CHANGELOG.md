@@ -6,6 +6,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added: Homebrew tap distribution channel
+
+- `templates/homebrew-formula/ai-configurator.rb`: ready-to-ship
+  live formula for the `simtabi/homebrew-tap` repository. Stdlib-only,
+  depends_on python@3.13. The `test do` block exercises:
+  - `--version` returns the expected version string.
+  - `decisions list` reports the bundled-packs surface (proves the
+    wheel preserved its resources directory).
+  - `--help` includes the multi-vendor verbs `compose-agents-md` and
+    `project-install`.
+- `docs/distribution/homebrew.md`: one-time tap setup (`brew tap-new`,
+  `brew create --python`, `brew update-python-resources`) and the
+  release-time auto-bump workflow.
+- SPEC adds Phase I "Homebrew tap distribution" (✔ this release).
+
 ### Added: multi-vendor wiring (`VendorAdapter` + four slices)
 
 The configurator now actually targets vendors beyond `claude-code`.
