@@ -105,7 +105,7 @@ def test_env_var_can_redirect_config_file(
     cfg_file = tmp_path / "via-env.json"
     cfg_file.write_text(json.dumps({"content_dir": str(tmp_path / "via-env-content")}))
     monkeypatch.setenv("CLAUDE_CONFIG_FILE", str(cfg_file))
-    cfg = ClaudeConfig.from_config()  # no arg — env should point us at cfg_file
+    cfg = ClaudeConfig.from_config()  # no arg: env should point us at cfg_file
     assert cfg.content_dir == (tmp_path / "via-env-content").resolve()
 
 
@@ -167,7 +167,7 @@ def test_install_creates_dir_symlink_for_memory(cfg: ClaudeConfig) -> None:
     report = cfg.install()
     # one dir symlink (the memory dir itself)
     assert report.dir_links_created == 1
-    # files inside reachable via the dir symlink — skipped per-file
+    # files inside reachable via the dir symlink: skipped per-file
     assert report.skipped_via_dir_symlink == 2
     link = cfg.target_base / "projects" / "p1" / "memory"
     assert link.is_symlink()
@@ -436,7 +436,7 @@ def test_sync_commits_changes(cfg: ClaudeConfig) -> None:
 def test_sync_on_clean_tree_returns_uncommitted(cfg: ClaudeConfig) -> None:
     cfg.init(init_git=True, with_examples=False)
     # nothing changed beyond .gitignore (already committed by init? actually
-    # init doesn't commit — git status will show .gitignore as untracked)
+    # init doesn't commit: git status will show .gitignore as untracked)
     # Let's commit it first so the tree IS clean:
     import subprocess
 
@@ -1173,7 +1173,7 @@ def test_init_auto_applies_claude_best_practices(cfg: ClaudeConfig) -> None:
 
 
 def test_best_practices_fragment_cites_official_docs(cfg: ClaudeConfig) -> None:
-    """Every claim in the fragment must point at code.claude.com — the only
+    """Every claim in the fragment must point at code.claude.com: the only
     way to keep this honest as the docs evolve."""
     cfg.init(init_git=False)
     body = (cfg.src_dir / "CLAUDE.md.claude-best-practices.fragment").read_text(
@@ -1221,7 +1221,7 @@ def test_reconcile_applies_packs_on_version_bump(
     from ai_configurator import manager as m
     monkeypatch.setattr(m, "_package_version", lambda: "9.9.9")
     cfg2 = ClaudeConfig.from_config(cfg_file)
-    # No last_applied_version written — defaults to "0.0.0"
+    # No last_applied_version written: defaults to "0.0.0"
 
     rep = cfg2.reconcile()
     assert rep.upgrade_happened
@@ -1376,7 +1376,7 @@ def test_docker_env_interpolation_ships_executable_script(cfg: ClaudeConfig) -> 
     script = cfg.src_dir / "scripts" / "render-env.sh"
     assert script.is_file()
     body = script.read_text(encoding="utf-8")
-    # POSIX shell script, not Python — Docker can't natively read .py
+    # POSIX shell script, not Python: Docker can't natively read .py
     assert body.startswith("#!/")
     assert "sh" in body.splitlines()[0]
     # Executable bit (manifest declares mode 0755)
@@ -1433,8 +1433,8 @@ def test_decision_mode_field_applies_to_dest(
 ) -> None:
     """A pack manifest with mode='0755' must produce an executable dest.
 
-    Verifies the generic mechanism — not just the docker-env-interpolation
-    pack — so future packs can ship executable artifacts the same way.
+    Verifies the generic mechanism: not just the docker-env-interpolation
+    pack: so future packs can ship executable artifacts the same way.
     """
     cfg.init(init_git=False)
     # docker-env-interpolation is the canonical user of the mode field

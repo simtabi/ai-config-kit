@@ -1,4 +1,4 @@
-"""ai-configurator — manage Claude Code's ~/.claude/ via symlinks from a content dir.
+"""ai-configurator: manage Claude Code's ~/.claude/ via symlinks from a content dir.
 
 Public API:
     ClaudeConfig        The single management class (fluent, OOP, configurable).
@@ -8,7 +8,7 @@ Public API:
     StatusReport        Returned by .status() with tracked + untracked breakdown.
     SyncReport          Returned by .sync() with commit hash + push status.
     CleanupReport       Returned by .cleanup() with per-category removals.
-    ListingReport       Returned by .list_contents() — grouped content view.
+    ListingReport       Returned by .list_contents(): grouped content view.
     ListingGroup        Member of ListingReport.groups.
     BootstrapReport     Returned by .bootstrap() with per-step outcome.
     BootstrapStep       Member of BootstrapReport.steps.

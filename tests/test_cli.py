@@ -1,4 +1,4 @@
-"""End-to-end CLI tests — argparse wiring, exit codes, env var precedence."""
+"""End-to-end CLI tests: argparse wiring, exit codes, env var precedence."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ def test_doctor_nonzero_when_unhealthy(tmp_path: Path) -> None:
     (content / "claude").mkdir(parents=True)
     (content / "claude" / "CLAUDE.md").write_text("x")
     target.mkdir()
-    # never installed — link missing
+    # never installed: link missing
     rc = main(["--content", str(content), "--target", str(target), "doctor"])
     assert rc == 1
 

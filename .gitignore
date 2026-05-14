@@ -28,7 +28,7 @@ htmlcov/
 *.swo
 .DS_Store
 
-# Secrets — defence in depth. The tool itself enforces these via
+# Secrets: defence in depth. The tool itself enforces these via
 # secret_patterns; this is the belt and suspenders.
 **/.credentials.json
 **/.credentials.json.*

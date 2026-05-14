@@ -106,13 +106,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub = p.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
 
-    # bootstrap (new — one-shot wrapper)
+    # bootstrap (new: one-shot wrapper)
     p_boot = sub.add_parser(
         "bootstrap",
         help="One-shot first-time setup (init + install + optional push + doctor).",
         description=(
             "Run init, install, optional sync --push, and doctor in sequence "
-            "with validation, prompting, and clean error reporting. Idempotent — "
+            "with validation, prompting, and clean error reporting. Idempotent: "
             "safe to re-run on a machine that's already set up."
         ),
     )
@@ -258,7 +258,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show what would be done without touching anything.",
     )
 
-    # reconcile — re-apply auto-apply packs missing since last upgrade
+    # reconcile: re-apply auto-apply packs missing since last upgrade
     p_recon = sub.add_parser(
         "reconcile",
         help="Re-apply auto-apply decision packs (transparently on every command).",
@@ -267,7 +267,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "last_applied_version stored in your JSON config. When they "
             "differ, applies every pack in DEFAULT_DECISIONS_ON_INIT "
             "non-clobberingly. This usually runs transparently on every "
-            "command — invoke explicitly to force the check or to "
+            "command: invoke explicitly to force the check or to "
             "re-apply with --force."
         ),
     )
@@ -277,7 +277,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Re-apply auto-apply packs even when versions match.",
     )
 
-    # fetch — disk-to-disk download
+    # fetch: disk-to-disk download
     p_fetch = sub.add_parser(
         "fetch",
         help="Disk-to-disk download of a canonical / upstream text file.",

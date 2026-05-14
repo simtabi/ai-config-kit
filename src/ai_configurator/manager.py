@@ -15,7 +15,7 @@ Design:
 - Defence in depth against secrets: refuses to track files matching
   configured patterns. Pattern set covers credentials, keys, tokens, env
   files, SSH keys, package-registry rc files, password DBs.
-- Operations on the CONTENT dir's git repo (not the tool's repo) — personal
+- Operations on the CONTENT dir's git repo (not the tool's repo): personal
   content stays isolated.
 - Cross-device-safe ``track`` via ``shutil.move``; ``Path.is_relative_to`` for
   path containment; ``importlib.metadata`` for version.
@@ -271,7 +271,7 @@ class ValidationReport:
 class FetchReport:
     """Outcome of ``.fetch_canonical()``.
 
-    Designed to be safe to print: contains metadata only — never body
+    Designed to be safe to print: contains metadata only: never body
     content beyond the first line (which for canonical files is a
     title; see ``include_first_line`` to suppress).
     """
@@ -298,7 +298,7 @@ class FetchReport:
 
 @dataclass(frozen=True)
 class ReconcileReport:
-    """Outcome of ``.reconcile()`` — auto-apply-on-upgrade tracker."""
+    """Outcome of ``.reconcile()``: auto-apply-on-upgrade tracker."""
 
     from_version: str
     to_version: str
@@ -308,7 +308,7 @@ class ReconcileReport:
 
     def summary(self) -> str:
         if not self.upgrade_happened:
-            return f"already at {self.to_version} — no reconcile needed"
+            return f"already at {self.to_version}: no reconcile needed"
         parts = [f"reconciled {self.from_version} -> {self.to_version}"]
         if self.packs_applied:
             parts.append(f"applied {len(self.packs_applied)} pack(s)")
@@ -447,7 +447,7 @@ class ListingReport:
                 lines.append(f"  ... ({count - max_per_group} more)")
             lines.append("")
         if not any_content:
-            lines.append("(content dir is empty — try `ai-configurator init`)")
+            lines.append("(content dir is empty: try `ai-configurator init`)")
         return "\n".join(lines).rstrip()
 
 
@@ -629,7 +629,7 @@ class ClaudeConfig:
         "polling-discipline",
     )
 
-    # Minimum supported Python — kept in sync with ``pyproject.toml``.
+    # Minimum supported Python: kept in sync with ``pyproject.toml``.
     MIN_PYTHON: ClassVar[tuple[int, int]] = (3, 10)
 
     # AI coding tools the configurator can target. Default selection is
@@ -639,14 +639,14 @@ class ClaudeConfig:
     # symlink target are accepted into config but flagged as "planned"
     # by ``vendor_status()``.
     SUPPORTED_VENDORS: ClassVar[tuple[str, ...]] = (
-        "claude-code",     # Anthropic Claude Code CLI — fully supported
-        "claude",          # Claude.ai web/desktop — partial (CLAUDE.md sharing)
-        "codex",           # OpenAI Codex CLI — planned
-        "cursor",          # Cursor IDE — planned (.cursorrules)
-        "cline",           # Cline (VS Code extension) — planned
-        "aider",           # Aider CLI — planned (AGENTS.md)
-        "windsurf",        # Windsurf IDE — planned (.windsurfrules)
-        "copilot",         # GitHub Copilot — planned (.github/copilot-instructions.md)
+        "claude-code",     # Anthropic Claude Code CLI: fully supported
+        "claude",          # Claude.ai web/desktop: partial (CLAUDE.md sharing)
+        "codex",           # OpenAI Codex CLI: planned
+        "cursor",          # Cursor IDE: planned (.cursorrules)
+        "cline",           # Cline (VS Code extension): planned
+        "aider",           # Aider CLI: planned (AGENTS.md)
+        "windsurf",        # Windsurf IDE: planned (.windsurfrules)
+        "copilot",         # GitHub Copilot: planned (.github/copilot-instructions.md)
     )
     DEFAULT_VENDORS: ClassVar[tuple[str, ...]] = ("claude-code",)
     VENDOR_STATUS: ClassVar[dict[str, str]] = {
@@ -715,7 +715,7 @@ class ClaudeConfig:
         self._relative_symlinks: bool = relative_symlinks
         self._auto_reconcile: bool = auto_reconcile
 
-        # Vendor list — which AI coding tools this configurator should
+        # Vendor list: which AI coding tools this configurator should
         # eventually target. Default is just claude-code (the fully-supported
         # path). Unknown vendors are accepted but flagged via vendor_status().
         if vendors is None:
@@ -841,7 +841,7 @@ class ClaudeConfig:
 
         Falls back to ``defaults`` (or ``DEFAULT_VENDORS``) when no
         prompter is supplied. The user can opt into vendors marked
-        ``planned`` — the configurator just won't yet symlink files for
+        ``planned``: the configurator just won't yet symlink files for
         them. Callers should pass the result to :py:meth:`with_vendors`.
         """
         default_set = set(defaults or self.DEFAULT_VENDORS)
@@ -864,7 +864,7 @@ class ClaudeConfig:
 
     @property
     def src_dir(self) -> Path:
-        """The 'claude/' subdir inside content_dir — source for symlinks."""
+        """The 'claude/' subdir inside content_dir: source for symlinks."""
         return self._content_dir / "claude"
 
     @property
@@ -910,7 +910,7 @@ class ClaudeConfig:
         return self.VENDOR_STATUS.get(vendor, "unknown")
 
     def unsupported_vendors(self) -> tuple[str, ...]:
-        """Selected vendors that aren't ``current`` yet — surfaces in CLI
+        """Selected vendors that aren't ``current`` yet: surfaces in CLI
         output so users see what's wired vs what's a placeholder."""
         return tuple(
             v for v in self._vendors
@@ -970,7 +970,7 @@ class ClaudeConfig:
 
         Also applies bundled decision packs (default:
         ``DEFAULT_DECISIONS_ON_INIT``). Pass ``apply_decisions=()`` to
-        skip — useful for tests or for a strictly bare setup.
+        skip: useful for tests or for a strictly bare setup.
         """
         self._content_dir.mkdir(parents=True, exist_ok=True)
         self.src_dir.mkdir(parents=True, exist_ok=True)
@@ -978,7 +978,7 @@ class ClaudeConfig:
         gitignore = self._content_dir / ".gitignore"
         if not gitignore.exists():
             gitignore.write_text(
-                "# Secrets — never commit\n"
+                "# Secrets: never commit\n"
                 + "\n".join(f"**/{p}" for p in self._secrets)
                 + "\n\n# Local noise\n"
                 + "\n".join(self._ignores)
@@ -1065,7 +1065,7 @@ class ClaudeConfig:
             if target.exists() and not target.is_symlink():
                 self._warn(
                     f"real-dir-collision:{target}",
-                    f"Real directory at {target} — skipping (use `track` to move it in)",
+                    f"Real directory at {target}: skipping (use `track` to move it in)",
                 )
                 continue
             if not dry_run:
@@ -1082,7 +1082,7 @@ class ClaudeConfig:
             if self._is_disallowed_project_path(rel):
                 self._warn(
                     f"projects-non-memory:{rel}",
-                    f"Skipping {rel} — only `memory/` is tracked under projects/<slug>/",
+                    f"Skipping {rel}: only `memory/` is tracked under projects/<slug>/",
                 )
                 continue
             target = self._target_base / rel
@@ -1232,7 +1232,7 @@ class ClaudeConfig:
         With ``include_ephemeral=True``, additionally clears the contents of
         each RUNTIME_DIRS entry under target_base (paste-cache/, file-history/,
         etc.). Never touches sessions/ or history.jsonl when
-        ``include_sessions`` / ``include_history`` are enabled — those are
+        ``include_sessions`` / ``include_history`` are enabled: those are
         explicitly tracked.
         """
         ds: list[Path] = []
@@ -1273,10 +1273,10 @@ class ClaudeConfig:
                 # Backups created by install have the form "<name>.<ext>.before-claude-config"
                 # so the "primary" is the same path without the trailing suffix.
                 if primary.is_symlink():
-                    # Active symlink — backup is shadow data.
+                    # Active symlink: backup is shadow data.
                     orphans.append(backup)
                 elif not primary.exists():
-                    # Primary gone entirely — backup is orphan.
+                    # Primary gone entirely: backup is orphan.
                     orphans.append(backup)
 
         # 4. optional: clear ephemeral runtime dirs
@@ -1323,7 +1323,7 @@ class ClaudeConfig:
         Groups (in order):
           - Top-level config files (CLAUDE.md, settings.json, …)
           - Auto-symlinked dirs (memory, commands, agents, skills, hooks,
-            prompts — one entry per dir, with file count + size)
+            prompts: one entry per dir, with file count + size)
           - Plugin config files (plugins/blocklist.json etc.)
           - Per-project memory (projects/<slug>/memory)
           - Host overlays (hosts/<host>/<file>)
@@ -1762,7 +1762,7 @@ class ClaudeConfig:
            land.
         4. Write the current version back to the JSON config.
 
-        Designed to be called transparently on every CLI invocation —
+        Designed to be called transparently on every CLI invocation;
         no-op when versions match. Off by default in tests; toggle via
         the ``auto_reconcile`` constructor arg or the ``auto_reconcile``
         JSON config field.
@@ -1808,7 +1808,7 @@ class ClaudeConfig:
         if not self._auto_reconcile:
             return None
         if self._loaded_config_path is None:
-            # No persistent config to track versions against — skip.
+            # No persistent config to track versions against: skip.
             return None
         try:
             return self.reconcile()
@@ -1988,7 +1988,7 @@ class ClaudeConfig:
         )
         total = 0
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            # ``urlopen`` doesn't raise for non-2xx — it returns the response.
+            # ``urlopen`` doesn't raise for non-2xx: it returns the response.
             # http.client / urllib raise HTTPError for 4xx/5xx, so this branch
             # is defensive against odd transports.
             status_code = getattr(resp, "status", None)
@@ -2091,7 +2091,7 @@ class ClaudeConfig:
                 f"Python {actual[0]}.{actual[1]} is older than the required {min_str}"
             )
 
-        # `python3` on PATH — useful for the generator-script pattern
+        # `python3` on PATH: useful for the generator-script pattern
         if not shutil.which("python3") and not shutil.which("python"):
             warnings_.append(
                 "no `python3` or `python` on PATH "
@@ -2126,7 +2126,7 @@ class ClaudeConfig:
             and not (self._content_dir / ".git").exists()
         ):
             warnings_.append(
-                f"{self._content_dir} has content but no .git/ — `init` will add it"
+                f"{self._content_dir} has content but no .git/: `init` will add it"
             )
 
         # Warn if a foreign symlink already exists at the target
@@ -2250,7 +2250,7 @@ class ClaudeConfig:
         # 4. Install
         if dry_run:
             # In dry-run, init was a no-op so src_dir may not exist.
-            # Don't call install() — just describe what it would do.
+            # Don't call install(): just describe what it would do.
             _step(
                 "install",
                 ok=True,
@@ -2394,7 +2394,7 @@ class ClaudeConfig:
             return False
         if stored.is_absolute():
             return stored == src
-        # Relative — resolve against the link's parent.
+        # Relative: resolve against the link's parent.
         return (target.parent / stored).resolve(strict=False) == src.resolve(strict=False)
 
     def _parent_dir_resolves_into_src(self, target: Path) -> bool:
@@ -2420,7 +2420,7 @@ class ClaudeConfig:
         return fnmatch.fnmatch(name, "*.before-claude-config")
 
     def _is_disallowed_project_path(self, rel: Path) -> bool:
-        """``projects/<slug>/<not-memory>`` is disallowed — only memory/ is tracked."""
+        """``projects/<slug>/<not-memory>`` is disallowed: only memory/ is tracked."""
         parts = rel.parts
         if len(parts) < 3 or parts[0] != "projects":
             return False
@@ -2430,7 +2430,7 @@ class ClaudeConfig:
         """Create a symlink at ``target`` pointing to ``src``.
 
         Internal helper. Callers MUST have already handled any pre-existing
-        real file at ``target`` (backup, refuse, etc.) — this helper unlinks
+        real file at ``target`` (backup, refuse, etc.): this helper unlinks
         whatever is there before re-linking.
         """
         if target.is_symlink() or target.exists():
@@ -2441,7 +2441,7 @@ class ClaudeConfig:
                 target.symlink_to(rel)
                 return
             except ValueError:
-                pass  # different drives on Windows — fall back to absolute
+                pass  # different drives on Windows: fall back to absolute
         target.symlink_to(src)
 
     def _unlink_quietly(self, p: Path) -> None:
