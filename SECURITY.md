@@ -20,7 +20,7 @@ We aim to acknowledge within 72 hours. Please include:
 
 | Version | Status |
 |---------|--------|
-| 0.1.x | Current — supported |
+| 0.1.x | Current (supported) |
 
 Security fixes target the latest minor release. Older minors receive
 fixes only for High and Critical severities.
@@ -50,7 +50,7 @@ The tool itself enforces secret hygiene at multiple layers:
 2. **Refuses to symlink** the same patterns during `install`.
 3. **Pre-populates `.gitignore`** in newly-initialized content
    directories with those patterns.
-4. **No network access** in the tool itself — every git operation
+4. **No network access** in the tool itself. Every git operation
    only touches the user-configured content dir.
 
 If you find a way to bypass these protections, that's a security

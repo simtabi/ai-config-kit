@@ -38,7 +38,7 @@ ai-configurator bootstrap        # validate + init + install + doctor, one shot
 | Kind | Examples | Worth versioning? |
 |---|---|---|
 | **Config** | `CLAUDE.md`, `settings.json`, `commands/`, `agents/`, `skills/`, `hooks/`, `prompts/`, `projects/*/memory/`, `plugins/blocklist.json` | yes |
-| **Opt-in** | `sessions/`, `history.jsonl` | maybe — grow fast |
+| **Opt-in** | `sessions/`, `history.jsonl` | maybe (grow fast) |
 | **Runtime** | `paste-cache/`, `file-history/`, `tasks/`, `todos/`, `cache/`, `plans/`, `statsig/`, `telemetry/` | no |
 | **Secret** | `.credentials.json`, SSH keys, `.npmrc`, `.netrc`, `.env*` | never |
 
@@ -97,7 +97,7 @@ it. Full design + threat model: <https://github.com/simtabi/get-installer>.
 ai-configurator bootstrap
 ```
 
-Runs validate → init → install → doctor with prompts. Idempotent —
+Runs validate → init → install → doctor with prompts. Idempotent:
 safe to re-run on a machine that's already set up. Pass `--push` to
 also commit + push the content dir to its remote, `--remote URL` to
 configure `origin` on a fresh machine, `--dry-run` to see what would
@@ -141,7 +141,7 @@ Every subcommand has `--help`. The full reference lives in
 
 ## Decisions: bundled global rules
 
-`ai-configurator` ships **decision packs** — opinionated bundles
+`ai-configurator` ships **decision packs**: opinionated bundles
 of `CLAUDE.md` fragments and slash commands that bake in proven
 patterns. Two are auto-applied on `init` (skip with `--no-decisions`):
 
@@ -211,7 +211,7 @@ package name is what changed.
 | [`docs/decisions.md`](docs/decisions.md) | Decision-pack catalogue + schema for authors |
 | [`docs/release.md`](docs/release.md) | Tag-driven release flow, OIDC trusted publishing |
 | [`docs/shipping-checklist.md`](docs/shipping-checklist.md) | One-time + ongoing release prep |
-| Installer (sibling repo) | `https://github.com/simtabi/get-installer` — reusable cross-platform one-liner installer; was here at `installer/` through v0.2.0 |
+| Installer (sibling repo) | `https://github.com/simtabi/get-installer`. Reusable cross-platform one-liner installer; was here at `installer/` through v0.2.0 |
 
 ---
 
@@ -219,7 +219,7 @@ package name is what changed.
 
 ```
 ai-configurator/
-├── README.md                       you are here — the single authoritative readme
+├── README.md                       you are here (the single authoritative readme)
 ├── docs/                           subdocs (lowercase-kebab, linked from README)
 ├── src/ai_configurator/        the package
 │   ├── manager.py                  ClaudeConfig class + all report types
@@ -239,7 +239,7 @@ ai-configurator/
 ```
 
 Per-pack details live next to each pack as `details.md` (shown by
-`ai-configurator decisions show <name>`) — no per-pack README.md
+`ai-configurator decisions show <name>`). No per-pack README.md
 files to disambiguate from this one.
 
 ---
@@ -254,4 +254,4 @@ macOS + Ubuntu × Python 3.10–3.13.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).

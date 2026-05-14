@@ -55,7 +55,7 @@ These keep the surface area small and predictable.
 - Body explains why, not what.
 - No emoji, no `Co-Authored-By`.
 - AI-tells (`leverage`, `seamless`, `essentially`, `note that`,
-  `simply,`) are blocked — write plainly.
+  `simply,`) are blocked. Write plainly.
 
 ## What goes in this repo
 
