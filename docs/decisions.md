@@ -50,6 +50,16 @@ Auto-applied by `ai-configurator init` (skip with `--no-decisions`):
 |---|---|
 | `script-generation-pattern` | Slash command + `CLAUDE.md` fragment teaching the model to write a generator script for many-file or content-filter-risky tasks. |
 | `fetch-canonical-pattern` | `/fetch-canonical` slash command + `CLAUDE.md` fragment routing canonical-file downloads disk-to-disk via `ai-configurator fetch` or `curl -o`. |
+| `session-protocol` | Five slash commands (`/session-start`, `/session-end`, `/track-progress`, `/research-source`, `/clarify`) + fragment codifying audit-on-start / track-progress / self-improve-on-end. |
+| `docker-multiarch` | `/docker-multiarch-check` slash command + self-gating fragment. Requires every published image to build for `linux/amd64` and `linux/arm64`. |
+| `docker-env-interpolation` | POSIX shell script (`scripts/render-env.sh`) that flattens layered `.env` files into one resolved output; `/render-env` slash command walks invocation. |
+| `claude-best-practices` | Best-practices fragment distilled from `code.claude.com/docs` + `/audit-claude-md` and `/init-rules` commands. |
+| `humanistic-style` | Banned-phrase list + doc-block conventions + `/audit-prose` and `/audit-docblocks` commands. Bans em-dash sandwich and other AI tells. |
+| `docs-structure` | One README at root, rest under `docs/`. `/audit-docs-structure` and `/migrate-readmes-to-docs` commands. |
+| `mcp-best-practices` | Model Context Protocol configuration fragment + `/audit-mcp-config` and `/add-mcp-server` commands. |
+| `safety-net-commits` | Prompts the user to commit a checkpoint at safe moments. `/checkpoint-now` and `/review-changes`. |
+| `vendor-portability` | AGENTS.md canonical pattern + `/audit-vendor-config`. Now points at `compose-agents-md` + `project-install` as the automated path. |
+| `polling-discipline` | "Don't chain sleeps" rule + `/wait-for` slash command. Heads off the runtime block that catches `sleep N; check` patterns. |
 
 Opt-in:
 
