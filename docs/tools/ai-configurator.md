@@ -58,7 +58,7 @@ ai-configurator install [--dry-run]
 
 Three passes: directory symlinks for auto-grow dirs, per-file symlinks
 for everything else, then host-overlay files. See
-[architecture.md](architecture.md) for details.
+[architecture.md](../architecture.md) for details.
 
 Also (slice 4, v0.3.x+) drops the canonical `AGENTS.md` into each
 configured non-`claude-code` vendor's global target. For example with
