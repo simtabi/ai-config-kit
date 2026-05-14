@@ -3,7 +3,7 @@ description: Audit AI-vendor config files for drift. Flag CLAUDE.md / .cursorrul
 ---
 
 Find every AI-vendor config file in the project and audit for drift
-against the canonical `AGENTS.md`. Reports only — no edits.
+against the canonical `AGENTS.md`. Reports only: no edits.
 
 ### Step 1: Inventory
 
@@ -57,9 +57,9 @@ points where expected. Broken symlinks → flag.
 | File | Status | Finding | Suggested fix |
 |---|---|---|---|
 | AGENTS.md | present | 87 lines | (canonical, ok) |
-| CLAUDE.md | imports @AGENTS.md | (ok) | — |
+| CLAUDE.md | imports @AGENTS.md | (ok) |: |
 | .cursorrules | regular file, 124 lines | drifted from AGENTS.md (12 sections differ) | replace with symlink OR add `@AGENTS.md` import |
-| .windsurfrules | symlink to AGENTS.md | (ok) | — |
+| .windsurfrules | symlink to AGENTS.md | (ok) |: |
 | .clinerules | (missing) | rule pack inactive for Cline | create symlink if Cline is used |
 ```
 

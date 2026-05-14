@@ -1,7 +1,7 @@
 # vendor-portability
 
 Most teams use more than one AI coding tool. Engineers swap between
-Claude Code, Cursor, Cline, Aider, Codex, Copilot, Windsurf — and the
+Claude Code, Cursor, Cline, Aider, Codex, Copilot, Windsurf: and the
 project rules want to apply to all of them. This pack codifies the
 "write once, target many" pattern.
 

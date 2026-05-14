@@ -12,10 +12,10 @@ files.
 Read the project's `CLAUDE.md`. For each top-level section (h2 or
 h3), classify it as one of:
 
-- **Always-on** — applies everywhere; stays in `CLAUDE.md`.
-- **Path-scoped** — applies only to files matching some glob.
+- **Always-on**: applies everywhere; stays in `CLAUDE.md`.
+- **Path-scoped**: applies only to files matching some glob.
   Becomes a `.claude/rules/<topic>.md` with `paths:` frontmatter.
-- **Procedure** — multi-step workflow. Should be a
+- **Procedure**: multi-step workflow. Should be a
   `.claude/skills/<name>/SKILL.md`, not a rule.
 
 ### Step 2: Propose a layout
@@ -51,7 +51,7 @@ Check the proposed layout:
 - Does the resulting `CLAUDE.md` come in under 200 lines? Aim for
   120 or fewer.
 - Are any rules so unique they shouldn't be path-scoped? (Some are
-  cross-cutting — keep them top-level.)
+  cross-cutting: keep them top-level.)
 
 ### Step 4: Pause
 

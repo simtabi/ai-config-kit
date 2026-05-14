@@ -3,7 +3,7 @@ description: Audit the current project's Dockerfile + CI for multi-arch readines
 ---
 
 Audit this project for multi-arch (linux/amd64 + linux/arm64) build
-readiness. Don't change any files yet — report findings and propose
+readiness. Don't change any files yet: report findings and propose
 the diff. I'll ask you to apply.
 
 Run these checks **in order** and report inline:
@@ -14,7 +14,7 @@ Run these checks **in order** and report inline:
 ls Dockerfile* docker-compose* Compose* Containerfile* 2>/dev/null
 ```
 
-If none of those exist, this isn't a Docker project — stop here and
+If none of those exist, this isn't a Docker project: stop here and
 say so. Otherwise continue.
 
 ### 2. Dockerfile inspection

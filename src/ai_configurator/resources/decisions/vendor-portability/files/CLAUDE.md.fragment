@@ -1,6 +1,6 @@
 ## Vendor portability (write once, target many AI tools)
 
-Most teams pair Claude Code with at least one other tool — Cursor,
+Most teams pair Claude Code with at least one other tool: Cursor,
 Cline, Codex, Aider, Copilot, Windsurf. The rules should apply to
 all of them without manual duplication.
 
@@ -90,5 +90,5 @@ AGENTS.md (and vice versa) so the canonical source stays canonical.
   applies in Cursor + Codex + Aider. Hoist to AGENTS.md.
 - **Don't keep .cursorrules out of git** unless it has personal
   preferences. Team-shared rules belong in the canonical file.
-- **Don't paste the same content into multiple files** by hand —
-  use the import/symlink pattern or a pre-commit hook.
+- **Don't paste the same content into multiple files** by hand.
+  Use the import/symlink pattern or a pre-commit hook.

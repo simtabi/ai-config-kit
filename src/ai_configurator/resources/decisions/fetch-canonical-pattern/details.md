@@ -14,14 +14,14 @@ Route the file's bytes around the response stream entirely:
 - **URL → disk** via `ai-configurator fetch` (Python, stdlib, cross-platform)
 - Or **URL → disk** via `curl -o <path> <url>` (where curl is available)
 - The model's reply contains only the **command** and **metadata
-  output** (`bytes=`, `sha256=`, etc.) — no file body.
+  output** (`bytes=`, `sha256=`, etc.): no file body.
 
 ## What this pack ships
 
-- `commands/fetch-canonical.md` — the `/fetch-canonical` slash command
+- `commands/fetch-canonical.md`: the `/fetch-canonical` slash command
   the model can use, with explicit "do NOT use file-write/edit/create
   tool" guardrails.
-- `CLAUDE.md.fetch-canonical-pattern.fragment` — global rule to paste
+- `CLAUDE.md.fetch-canonical-pattern.fragment`: global rule to paste
   into your `CLAUDE.md` so the pattern fires whenever a canonical
   file is requested, even without invoking the slash command.
 

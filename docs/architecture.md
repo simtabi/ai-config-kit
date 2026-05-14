@@ -3,7 +3,7 @@
 ## The problem
 
 `~/.claude/` is the directory Claude Code reads its config from. It also
-gets a lot of runtime writes from the harness — session transcripts,
+gets a lot of runtime writes from the harness: session transcripts,
 paste caches, edit history, telemetry IDs. Versioning the whole
 directory means versioning hundreds of MB of caches; carefully
 gitignoring inside the directory means fighting the tool every release.
@@ -19,15 +19,15 @@ Two directories, joined by symlinks:
 └── claude/                             mirrors ~/.claude/ layout
     ├── CLAUDE.md                       -> ~/.claude/CLAUDE.md
     ├── settings.json                   -> ~/.claude/settings.json
-    ├── commands/                       (dir symlink — auto-grow)
-    ├── agents/                         (dir symlink — auto-grow)
-    ├── skills/                         (dir symlink — auto-grow)
-    ├── hooks/                          (dir symlink — auto-grow)
-    ├── prompts/                        (dir symlink — auto-grow)
-    ├── projects/<slug>/memory/         (dir symlink — auto-grow)
+    ├── commands/                       (dir symlink: auto-grow)
+    ├── agents/                         (dir symlink: auto-grow)
+    ├── skills/                         (dir symlink: auto-grow)
+    ├── hooks/                          (dir symlink: auto-grow)
+    ├── prompts/                        (dir symlink: auto-grow)
+    ├── projects/<slug>/memory/         (dir symlink: auto-grow)
     ├── plugins/blocklist.json          (file symlink)
     ├── plugins/known_marketplaces.json (file symlink)
-    └── hosts/<hostname>/               (host-overlay source — installs per-machine)
+    └── hosts/<hostname>/               (host-overlay source: installs per-machine)
 ```
 
 Editing `~/.claude/CLAUDE.md` opens the file in the content dir.
@@ -75,7 +75,7 @@ Use cases:
   host.
 - Per-machine hook commands that point at host-specific tool paths.
 
-`doctor` flags a symlink pointing into another host's overlay — typically
+`doctor` flags a symlink pointing into another host's overlay: typically
 the result of restoring a config dir on a new machine where install
 hasn't been re-run.
 
@@ -94,7 +94,7 @@ hasn't been re-run.
 content/
 ├── .git/                        (optional but recommended)
 ├── .gitignore                    (auto-seeded by `init`)
-└── claude/                       (required — install fails without it)
+└── claude/                       (required: install fails without it)
     └── ...                        (your tracked content)
 ```
 

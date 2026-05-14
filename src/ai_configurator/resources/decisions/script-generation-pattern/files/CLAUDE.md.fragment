@@ -12,10 +12,10 @@ outputs**. Use a generator script instead.
    `tools/`) in the repo, or `/tmp/` if it's truly one-shot.
 2. **Run it** via Bash. The script writes the files to disk.
 3. **Read back** the generated files to verify they match the design
-   spec — open at least the most structurally important ones.
-4. **Validate** — run the project's lint / type-check / tests / schema
+   spec: open at least the most structurally important ones.
+4. **Validate**: run the project's lint / type-check / tests / schema
    check; surface any failure.
-5. **Report** — describe what was generated, what passed, what didn't.
+5. **Report**: describe what was generated, what passed, what didn't.
 
 ### Why
 
@@ -24,7 +24,7 @@ outputs**. Use a generator script instead.
 - The script is auditable, editable, and re-runnable. The result is
   reproducible.
 - The model's role shifts from "emit N file contents" (high token cost,
-  high block risk) to "write the generator + verify the result" — a
+  high block risk) to "write the generator + verify the result": a
   smaller surface.
 
 ### When this pattern doesn't apply
@@ -40,7 +40,7 @@ outputs**. Use a generator script instead.
 #!/usr/bin/env python3
 """Generator for <task>.
 
-Idempotent — re-running overwrites only the files this script owns.
+Idempotent: re-running overwrites only the files this script owns.
 """
 from pathlib import Path
 

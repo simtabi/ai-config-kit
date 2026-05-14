@@ -1,6 +1,6 @@
 {
   "name": "claude-best-practices",
-  "description": "Current (2026) best practices for CLAUDE.md authoring, skills, hooks, and memory — distilled from code.claude.com/docs.",
+  "description": "Current (2026) best practices for CLAUDE.md authoring, skills, hooks, and memory. Distilled from code.claude.com/docs.",
   "version": "1.0.0",
   "files": [
     {

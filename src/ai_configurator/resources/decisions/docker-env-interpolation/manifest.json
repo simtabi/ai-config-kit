@@ -1,6 +1,6 @@
 {
   "name": "docker-env-interpolation",
-  "description": "Render a fully-resolved .env from .env + .env.local + shell env. Docker Compose handles interpolation natively in .env now, but many other tools that read .env do not — this script flattens for portability.",
+  "description": "Render a fully-resolved .env from .env + .env.local + shell env. Docker Compose handles interpolation natively in .env now, but many other tools that read .env do not, so this script flattens for portability.",
   "version": "1.0.0",
   "files": [
     {

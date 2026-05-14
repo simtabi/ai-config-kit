@@ -7,7 +7,7 @@ content-filter block. Switch to the generator-script-first pattern:
 
 1. **Write a generator script** (Python or Bash) holding the file
    contents in source form. Save it under `scripts/` in the repo, or
-   `/tmp/` if it's strictly one-shot. The script should be idempotent —
+   `/tmp/` if it's strictly one-shot. The script should be idempotent:
    re-running overwrites only the files it owns.
 
 2. **Run it** via Bash. The script writes files to disk.

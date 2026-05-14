@@ -39,7 +39,7 @@ through three CLI verbs:
 ```
 
 `dest` is relative to `<content>/claude/`. Files with a
-`.fragment` suffix are **not** auto-applied — they're meant to be
+`.fragment` suffix are **not** auto-applied: they're meant to be
 read, copy-pasted, or appended manually.
 
 ## Bundled packs
@@ -64,7 +64,7 @@ details (the embedded `details.md`).
 
 1. Create `src/ai_configurator/resources/decisions/<name>/`
    with `manifest.json`, `details.md`, and a `files/` subtree.
-2. Wheel builds include it automatically — no `pyproject.toml`
+2. Wheel builds include it automatically: no `pyproject.toml`
    change needed.
 3. (Optional) Add the pack to `DEFAULT_DECISIONS_ON_INIT` in
    `manager.py` so `init` auto-applies it.
@@ -77,6 +77,6 @@ details (the embedded `details.md`).
 - It refuses to overwrite an existing file unless `--force`.
 - `--dry-run` prints what would be written without writing.
 
-Behaviour is identical for end users and developers — the same
+Behaviour is identical for end users and developers: the same
 `resources/decisions/` directory ships in the wheel and is read in
 editable installs.

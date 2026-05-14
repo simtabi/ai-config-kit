@@ -8,15 +8,15 @@ follows this layout.
 GitHub Community-profile recognises specific filenames at the repo
 root. Keep them there; nothing else.
 
-- `README.md` — one authoritative file, professionally designed, with
+- `README.md`: one authoritative file, professionally designed, with
   a TOC, install instructions, quick-start, command index, links into
   `docs/`. Anything that doesn't fit in a top-level README belongs in
   `docs/`.
-- `CHANGELOG.md` — Keep-a-Changelog format, semver.
-- `CONTRIBUTING.md` — coding conventions, test patterns, PR rules.
-- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1.
-- `SECURITY.md` — disclosure address + policy.
-- `LICENSE` — no extension.
+- `CHANGELOG.md`: Keep-a-Changelog format, semver.
+- `CONTRIBUTING.md`: coding conventions, test patterns, PR rules.
+- `CODE_OF_CONDUCT.md`: Contributor Covenant 2.1.
+- `SECURITY.md`: disclosure address + policy.
+- `LICENSE`: no extension.
 
 No `README.<topic>.md` at root. No `INSTALL.md`, `ARCHITECTURE.md`,
 `USAGE.md`, `TODO.md`, `NOTES.md`, `ROADMAP.md` at root. All of those

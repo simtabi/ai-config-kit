@@ -1,6 +1,6 @@
 ## Claude Code authoring best practices (2026)
 
-Distilled from <https://code.claude.com/docs> — current as of
+Distilled from <https://code.claude.com/docs>: current as of
 ai-configurator 0.3.0. Cited inline so you can verify each rule
 at the source.
 
@@ -20,16 +20,16 @@ at the source.
 
 1. **Managed policy** (`/Library/Application Support/ClaudeCode/CLAUDE.md`
    on macOS, `/etc/claude-code/CLAUDE.md` on Linux/WSL,
-   `C:\Program Files\ClaudeCode\CLAUDE.md` on Windows) — IT-controlled.
-2. **User** (`~/.claude/CLAUDE.md`) — personal preferences, all projects.
-3. **Project** (`./CLAUDE.md` or `./.claude/CLAUDE.md`) — committed,
+   `C:\Program Files\ClaudeCode\CLAUDE.md` on Windows): IT-controlled.
+2. **User** (`~/.claude/CLAUDE.md`): personal preferences, all projects.
+3. **Project** (`./CLAUDE.md` or `./.claude/CLAUDE.md`): committed,
    team-shared.
-4. **Local** (`./CLAUDE.local.md`) — gitignored, personal-per-project.
-5. **Nested CLAUDE.md** in subdirectories — load on-demand when
+4. **Local** (`./CLAUDE.local.md`): gitignored, personal-per-project.
+5. **Nested CLAUDE.md** in subdirectories: load on-demand when
    Claude reads files there.
 
 All files **concatenate, root-down**. Later files can't override
-earlier ones — they accumulate. Avoid conflicts; remove duplicates.
+earlier ones: they accumulate. Avoid conflicts; remove duplicates.
 
 ### Imports
 
@@ -78,7 +78,7 @@ Cited: <https://code.claude.com/docs/en/skills>.
 - *Knowledge that's only relevant in some files* → `.claude/rules/` with `paths:`.
 
 **Use `disable-model-invocation: true`** on skills with side
-effects — `/deploy`, `/commit`, `/send-slack-message`. Stops Claude
+effects: `/deploy`, `/commit`, `/send-slack-message`. Stops Claude
 from "helpfully" running them.
 
 **Use `context: fork`** on read-heavy skills (research, audits)
@@ -92,7 +92,7 @@ designation.
 system prompt. Claude reads it and tries to follow it; there's no
 strict enforcement.
 
-**Hooks are enforced** — they run as shell commands at lifecycle
+**Hooks are enforced**: they run as shell commands at lifecycle
 events regardless of what Claude decides to do. Use hooks for
 must-run actions like "lint before every commit" or "block PUT
 requests to production".
@@ -100,12 +100,12 @@ requests to production".
 34 hook events as of 2026; full list at
 <https://code.claude.com/docs/en/hooks>. Notable:
 
-- `PreToolUse` — block / deny / ask / defer tool calls.
-- `UserPromptSubmit` — pre-process or block user input.
-- `PostToolUse` — observability only.
-- `SessionStart` — inject startup context.
-- `PreCompact` / `PostCompact` — last-chance state save before context summary.
-- `InstructionsLoaded` — debug which CLAUDE.md / rules files loaded.
+- `PreToolUse`: block / deny / ask / defer tool calls.
+- `UserPromptSubmit`: pre-process or block user input.
+- `PostToolUse`: observability only.
+- `SessionStart`: inject startup context.
+- `PreCompact` / `PostCompact`: last-chance state save before context summary.
+- `InstructionsLoaded`: debug which CLAUDE.md / rules files loaded.
 
 ### Auto memory
 
@@ -120,13 +120,13 @@ Claude Code maintains per-project notes at
 ### Anti-patterns to avoid
 
 - **No secrets in CLAUDE.md.** It goes to the model on every session.
-- **No conversation paste** (`User said X, I replied Y…`) — move to
+- **No conversation paste** (`User said X, I replied Y…`): move to
   auto memory or skill body.
-- **No multi-step procedure dumps** — extract to a skill.
+- **No multi-step procedure dumps**: extract to a skill.
 - **No "always do X **and** never do Y" pairs that are easy to
-  conflict** — pick the positive form, drop the negative.
+  conflict**: pick the positive form, drop the negative.
 - **No outdated references**: `commands/` → use `skills/` for new
-  work; `AGENTS.md` not directly read — must be imported.
+  work; `AGENTS.md` not directly read: must be imported.
 
 ### `/init` bootstrap
 
@@ -147,7 +147,7 @@ Cited: <https://code.claude.com/docs/en/memory#how-claude-md-files-load>.
 
 ### When `/compact` happens
 
-Project-root CLAUDE.md survives compaction — re-read from disk after
+Project-root CLAUDE.md survives compaction: re-read from disk after
 the summary. Nested CLAUDE.md files in subdirectories do NOT
 re-inject; they reload the next time Claude reads a file there.
 

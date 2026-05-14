@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
-# render-env.sh — flatten layered .env files into one fully-interpolated output.
+# render-env.sh: flatten layered .env files into one fully-interpolated output.
 #
 # Shipped by ai-configurator (decisions/docker-env-interpolation). Lands at
 # ~/.claude/scripts/render-env.sh. Copy into a project's scripts/ when
 # teammates need the same tool.
 #
-# POSIX sh — works under sh, dash, bash, zsh. No Python or external
+# POSIX sh: works under sh, dash, bash, zsh. No Python or external
 # parsers required. Uses awk (POSIX) for tokenisation.
 #
 # Why a shell script:
@@ -37,7 +37,7 @@
 #   4  cyclic reference detected
 #
 # Security: refuses to source any file because `source` evaluates shell
-# in env values — attacker-controlled .env files can run arbitrary code.
+# in env values, so attacker-controlled .env files could run arbitrary code.
 # Parsing is done with awk against literal lines only.
 
 set -eu
@@ -54,7 +54,7 @@ STDIN=0
 
 usage() {
     cat <<'EOF' >&2
-render-env.sh — flatten layered .env files.
+render-env.sh: flatten layered .env files.
 
 Usage:
   render-env.sh [options]

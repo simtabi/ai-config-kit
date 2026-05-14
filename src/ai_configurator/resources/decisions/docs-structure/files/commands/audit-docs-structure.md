@@ -3,7 +3,7 @@ description: Audit the current repo against the docs-structure standard. Reports
 ---
 
 Audit the current project against the docs-structure standard.
-Report findings — do NOT edit.
+Report findings: do NOT edit.
 
 ### Step 1: Root-file census
 

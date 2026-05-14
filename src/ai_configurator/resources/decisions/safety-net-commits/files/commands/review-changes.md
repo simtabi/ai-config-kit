@@ -46,7 +46,7 @@ code (3 files, +120 -45):
 Flag anything that needs special review:
 
 - Files matching `.env` / `.credentials` / SSH-key patterns
-  (CRITICAL — should be in .gitignore, not the diff)
+  (CRITICAL: should be in .gitignore, not the diff)
 - Schema files (`*.schema.json`, `*.graphql`, migration files)
   → breaking-change risk
 - `pyproject.toml` / `package.json` / `composer.json` → dependency

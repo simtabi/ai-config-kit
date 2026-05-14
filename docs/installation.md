@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Python 3.10 or later** — the CLI runs under Python and uses
+- **Python 3.10 or later**: the CLI runs under Python and uses
   stdlib only. The `fetch` and decision-pack features are pure
   Python so they work identically on macOS, Linux, and Windows.
 - `git` on `PATH` (only needed for `init` and `sync`).
@@ -37,7 +37,7 @@ and a health check:
 ai-configurator bootstrap
 ```
 
-Re-running `bootstrap` on a machine that's already set up is safe — each
+Re-running `bootstrap` on a machine that's already set up is safe: each
 step short-circuits if the work is already done.
 
 ### On a second machine
@@ -73,5 +73,5 @@ ai-configurator uninstall      # remove symlinks; restore pre-install backups
 pip uninstall ai-configurator  # remove the CLI
 ```
 
-Your content dir is **never touched** by `uninstall` — back it up first
+Your content dir is **never touched** by `uninstall`: back it up first
 if you also want to delete it.

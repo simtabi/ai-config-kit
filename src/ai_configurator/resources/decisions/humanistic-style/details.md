@@ -31,7 +31,7 @@ Banned-phrase list, by category:
   "at its core"
 - **Tour-guide voice**: "Now let's", "Let's go ahead and", "Note that",
   "Importantly", "**Important:**"
-- **Em-dash sandwich**: " — and — ", " — but — ", em-dashes inside
+- **Em-dash sandwich**: ": and: ", ": but: ", em-dashes inside
   parentheticals where commas would do
 - **Smarmy connectors**: "delve", "delve into", "in the realm of",
   "the world of"

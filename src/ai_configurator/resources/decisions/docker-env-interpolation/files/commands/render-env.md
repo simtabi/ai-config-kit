@@ -13,8 +13,8 @@ ls -la .env* env/*.env 2>/dev/null
 
 Identify:
 - The primary input (usually `.env`)
-- Any local override (`.env.local` — should be gitignored)
-- Any example template (`.env.example` — committed)
+- Any local override (`.env.local`: should be gitignored)
+- Any example template (`.env.example`: committed)
 - Any per-stage variants (`.env.production`, `.env.staging`)
 - Whether `.env` is in `.gitignore`
 
@@ -69,7 +69,7 @@ Always add the output to `.gitignore` if it isn't already:
 .env.local
 ```
 
-Don't commit a rendered env — it almost always contains secrets
+Don't commit a rendered env: it almost always contains secrets
 that were resolved from the shell environment.
 
 ### Step 6: Pause for confirmation

@@ -55,7 +55,7 @@ cache boundaries:
 - **60–270s** keeps the prompt cache warm (under 5 min TTL).
 - **1200–1800s** (20–30 min) amortizes a single cache miss for a
   long idle period.
-- **Never 300s** — pays the cache miss without amortizing it.
+- **Never 300s**: pays the cache miss without amortizing it.
 
 ### Don't reach for these to dodge the block
 

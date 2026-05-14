@@ -25,8 +25,8 @@ without explicit instruction) at these moments:
    tool calls in a chain.
 3. **At session end** as part of the hand-off summary.
 4. **Before `ai-configurator install` / `repair` / `decisions apply
-   --force`** — anything that rewrites the content dir non-trivially.
-5. **When the working tree gets > 10 uncommitted files** — review
+   --force`**: anything that rewrites the content dir non-trivially.
+5. **When the working tree gets > 10 uncommitted files**: review
    debt accumulates fast.
 
 The agent ALWAYS asks first. Per the user's standing CLAUDE.md rule:

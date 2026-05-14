@@ -4,7 +4,7 @@ argument-hint: <topic>
 ---
 
 You need a fact about $1 that you don't have from this session's
-reads. Don't guess. Don't paraphrase from training data — that's a
+reads. Don't guess. Don't paraphrase from training data: that's a
 year+ stale.
 
 Research order (highest trust first):
@@ -13,14 +13,14 @@ Research order (highest trust first):
    - `docs.<vendor>.com`, `developer.<vendor>.com`, the framework's
      own docs site.
    - Use `WebFetch <url>` to pull the exact page.
-   - Look for a version selector — read the *current stable* docs,
+   - Look for a version selector: read the *current stable* docs,
      not the latest pre-release unless the user is on it.
 
-2. **Project's own GitHub** — README, CHANGELOG, the `docs/` tree,
+2. **Project's own GitHub**: README, CHANGELOG, the `docs/` tree,
    release notes for the version under discussion.
    - `WebFetch https://github.com/<org>/<repo>/blob/<ref>/<path>`
 
-3. **Tagged releases** — when behaviour changed across versions, the
+3. **Tagged releases**: when behaviour changed across versions, the
    CHANGELOG entry for the version in question is the authoritative
    answer.
 
@@ -29,7 +29,7 @@ Research order (highest trust first):
    - Lobste.rs / Hacker News front-page (curation signal).
    - Mailing list archives + GitHub Discussions tagged "answered".
 
-5. **Stack Overflow** — answers with > 50 upvotes and a recent edit
+5. **Stack Overflow**: answers with > 50 upvotes and a recent edit
    date (within ~2 years of the version under discussion).
 
 6. **Last resort**: ask the user with a one-line question + your
@@ -39,7 +39,7 @@ Research order (highest trust first):
 
 - Random Medium / dev.to articles with no author authority.
 - Content-farm sites (`tutorialspoint`, `geeksforgeeks` when the
-  topic is fast-moving — they're often years stale).
+  topic is fast-moving: they're often years stale).
 - AI-generated blog spam (look for too-perfect prose + zero edit
   history).
 - Paywalled pages without context.

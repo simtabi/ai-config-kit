@@ -8,9 +8,9 @@ list before starting so progress is visible and resumable.
 
 1. **Decompose the goal** into 3–10 concrete tasks. Each task should
    be:
-   - **Independently verifiable** — you can tell when it's done.
+   - **Independently verifiable**: you can tell when it's done.
    - **Imperative-mood title** ≤ 60 chars.
-   - **Ordered by dependency** — earlier tasks unblock later ones.
+   - **Ordered by dependency**: earlier tasks unblock later ones.
 
 2. **Create each task** via `TaskCreate`:
    ```
@@ -35,4 +35,4 @@ list before starting so progress is visible and resumable.
    Don't power through an obviously wrong sequence.
 
 Default scale: a request that would take you 10+ tool calls is a
-task-list request. Sub-3 tool calls is too small — just do it.
+task-list request. Sub-3 tool calls is too small: just do it.

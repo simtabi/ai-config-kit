@@ -24,7 +24,7 @@ without the user passing `--platform`**.
 
 1. **Every `Dockerfile` we write is multi-arch by default**. Use
    official multi-arch base images (`ubuntu:*`, `python:*-slim`,
-   `node:*-alpine`, `alpine:*`, `debian:*-slim`, etc.) — they
+   `node:*-alpine`, `alpine:*`, `debian:*-slim`, etc.): they
    already publish `linux/amd64` + `linux/arm64` manifests.
 
 2. **Use the buildx ARGs** when cross-compiling or selecting an

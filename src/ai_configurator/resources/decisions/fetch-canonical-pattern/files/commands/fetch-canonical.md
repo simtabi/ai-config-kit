@@ -11,7 +11,7 @@ use those tools for this file.**
 
 Use the shell tool with a disk-to-disk downloader:
 
-**Preferred** — `ai-configurator fetch` (Python, ships with ai-configurator):
+**Preferred**: `ai-configurator fetch` (Python, ships with ai-configurator):
 
 ```bash
 ai-configurator fetch $1 $2

@@ -19,7 +19,7 @@ the official docs that the fragment cites.
 
 MCP servers run as separate processes that Claude Code talks to over
 JSON-RPC. They can read files, hit APIs, query databases, send
-notifications — anything they're built to do. A malicious or buggy
+notifications: anything they're built to do. A malicious or buggy
 MCP server has the same access the user grants it.
 
 The pack's hard rules:
@@ -28,7 +28,7 @@ The pack's hard rules:
 - Only enable MCP servers from sources you've vetted (Anthropic
   Directory at <https://claude.ai/directory>, official npm
   organisations, etc.).
-- Keep secrets out of `.mcp.json` (gitignored project file) — load
+- Keep secrets out of `.mcp.json` (gitignored project file): load
   them from env vars.
 - Treat project-level `.mcp.json` like any third-party config:
   review every PR that touches it; never auto-accept.

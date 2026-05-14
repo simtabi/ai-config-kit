@@ -3,9 +3,9 @@
 Every setting has a default. Per-user / per-machine overrides happen
 through four layers, applied in precedence order (highest first):
 
-1. **CLI flag** — `--content` / `--target` / `--config`
-2. **Environment variable** — see table below
-3. **JSON config file** — `~/.config/claude-config/config.json`
+1. **CLI flag**: `--content` / `--target` / `--config`
+2. **Environment variable**: see table below
+3. **JSON config file**: `~/.config/claude-config/config.json`
 4. **Class default** (built in)
 
 ## Environment variables
@@ -46,7 +46,7 @@ Default path: `${XDG_CONFIG_HOME:-~/.config}/ai-configurator/config.json`.
 | `include_history` | `false` | Track `~/.claude/history.jsonl` (opt-in; grows fast) |
 | `relative_symlinks` | `true` | Use path-relative symlinks (survives content-dir relocation) |
 
-Unknown fields in the file on disk are preserved by `save_config` —
+Unknown fields in the file on disk are preserved by `save_config`:
 forward-compat for future versions.
 
 ## Secrets
@@ -78,7 +78,7 @@ On host `desktop`, it doesn't. Each host can have its own
 `hosts/<host>/` directory with whatever files differ between machines.
 
 `doctor` warns if it finds a symlink at the target that points into a
-foreign host's overlay dir — protecting against a symlink left over
+foreign host's overlay dir: protecting against a symlink left over
 from a different machine's install.
 
 ## Sessions and history (opt-in)

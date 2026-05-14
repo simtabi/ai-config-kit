@@ -21,7 +21,7 @@ command after `pip install --upgrade ai-configurator`.
 
 ## Rules at a glance
 
-1. **Target under 200 lines per CLAUDE.md** — longer files reduce
+1. **Target under 200 lines per CLAUDE.md**: longer files reduce
    adherence (cited).
 2. **Hierarchy**: managed > user (`~/.claude/CLAUDE.md`) > project
    (`./CLAUDE.md` or `./.claude/CLAUDE.md`) > local
@@ -37,15 +37,15 @@ command after `pip install --upgrade ai-configurator`.
    effects (`/deploy`, `/commit`, `/send-slack`).
 7. **Use `context: fork`** on read-heavy skills to keep main context
    clean.
-8. **Use hooks** when something MUST happen at a lifecycle event —
+8. **Use hooks** when something MUST happen at a lifecycle event.
    CLAUDE.md is context, not enforced configuration.
 9. **AGENTS.md compat**: `@AGENTS.md` import or symlink so Claude
    reads the same file other agents do.
 10. **`/init`** generates a starting CLAUDE.md. Set
     `CLAUDE_CODE_NEW_INIT=1` for the interactive multi-phase flow.
 11. **Block-level HTML comments** in CLAUDE.md are stripped before
-    sending to the model — free space for human notes.
-12. **No secrets in CLAUDE.md** — they go to the model verbatim.
+    sending to the model: free space for human notes.
+12. **No secrets in CLAUDE.md**: they go to the model verbatim.
 
 ## Apply
 

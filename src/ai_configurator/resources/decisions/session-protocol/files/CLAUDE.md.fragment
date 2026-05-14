@@ -16,7 +16,7 @@ costs more time than it saves.
 
 ### During the work
 
-5. **Hallucination guard** — every claim about the codebase comes
+5. **Hallucination guard**: every claim about the codebase comes
    from a live `Read` / `Grep` / shell call. Memory tells you what
    was true *when written*, not what's true *now*. Cite `path:line`
    where possible.
@@ -24,20 +24,20 @@ costs more time than it saves.
    *typically, usually, I believe, around line ~, about N files, the
    function probably does …*. Round numbers also signal guessing.
 
-6. **Track progress** — for anything beyond 3 steps, use a task list
+6. **Track progress**: for anything beyond 3 steps, use a task list
    (TodoWrite / TaskCreate). Mark `in_progress` *before* you start;
    `completed` *the moment* it's done, never in a batch.
 
-7. **Watch for regressions** — after every non-trivial edit, re-run
+7. **Watch for regressions**: after every non-trivial edit, re-run
    the relevant subset of the project's quality gates (tests, lint,
    type-check). Don't accumulate "I'll-run-everything-at-the-end"
-   debt — failures discovered late cost double.
+   debt: failures discovered late cost double.
 
-8. **Log failures immediately** — when a step fails, surface it in
+8. **Log failures immediately**: when a step fails, surface it in
    your next reply: what failed, what you tried, what you'll try
    next. Don't silently retry.
 
-9. **Research before guessing** — when you need a fact you don't
+9. **Research before guessing**: when you need a fact you don't
    have from this session's reads (an API signature, a CLI flag's
    semantics, a current spec version), use `WebFetch` to read the
    official docs first, the project's GitHub README second, reputable
@@ -51,14 +51,14 @@ costs more time than it saves.
    - **Skip**: random Medium articles, content farms, AI-generated
      blog spam, paywalled pages without context.
 
-10. **Clarifying questions** — when my ask is ambiguous *and* the
+10. **Clarifying questions**: when my ask is ambiguous *and* the
     wrong interpretation would cost > 5 minutes to undo, ask **one**
     clarifying question with a numbered options list and the trade-
     off for each. Not Socratic chains. Not three questions at once.
 
 ### Session end
 
-11. **Self-improvement loop** — before signing off, suggest:
+11. **Self-improvement loop**: before signing off, suggest:
     - SPEC / `STATUS.md` updates (new findings → §"issues";
       finished phases → mark `[x]`).
     - Prompt updates (this protocol): patterns you'd want the next
@@ -67,7 +67,7 @@ costs more time than it saves.
     - Memory entries: anything non-obvious you learned that
       future-you will want.
 
-12. **Hand-off summary** — last paragraph of the session covers:
+12. **Hand-off summary**: last paragraph of the session covers:
     what changed (cite paths), what's still open (cite issue ids),
     what the next session should pick up first. One paragraph max.
 

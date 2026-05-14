@@ -24,7 +24,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `SPEC.md` moved from repo root to `docs/SPEC.md` per the new
   docs-structure standard.
 
-### Added — four new auto-applied decision packs
+### Added: four new auto-applied decision packs
 
 - **`humanistic-style`** (auto-applied): strips AI tells from prose
   and codifies code-comment conventions. Ships a banned-phrase list
@@ -67,7 +67,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   existing installs on next CLI run because the pack is brand-new
   and reconcile's non-clobbering apply ships new dest files freely.
 
-### Added — decision-pack `mode` field
+### Added: decision-pack `mode` field
 
 - Each entry in a pack's `manifest.json::files` may now specify
   `"mode": "0755"` (or any octal string). Applied with `chmod`
@@ -86,17 +86,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `polling-discipline`. The `core` pack stays opt-in.
 - `decisions list` now shows 13 bundled packs (1 opt-in + 12 auto).
 
-### Added — auto-reconcile-on-upgrade
+### Added: auto-reconcile-on-upgrade
 
-- `ClaudeConfig.reconcile()` — compares the package version against
+- `ClaudeConfig.reconcile()`: compares the package version against
   `last_applied_version` stored in the JSON config. On mismatch,
   applies every pack in `DEFAULT_DECISIONS_ON_INIT` non-clobberingly,
   so users who `pip install --upgrade ai-configurator` automatically
   pick up new packs without re-running `init`. Writes the new version
   back to disk.
-- `ClaudeConfig.reconcile_if_enabled()` — CLI-startup helper; honours
+- `ClaudeConfig.reconcile_if_enabled()`: CLI-startup helper; honours
   `auto_reconcile` flag + skips when no JSON config is loaded.
-- `ai-configurator reconcile [--force]` — explicit subcommand for
+- `ai-configurator reconcile [--force]`: explicit subcommand for
   manual or scripted use.
 - CLI auto-invokes reconcile on every command. Prints a single-line
   notice to stderr when an upgrade actually happened.
@@ -104,21 +104,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   for users who manage packs manually.
 - `ReconcileReport` dataclass exported at the package surface.
 
-### Added — `claude-best-practices` decision pack (auto-applied)
+### Added: `claude-best-practices` decision pack (auto-applied)
 
 - Distilled from the live <https://code.claude.com/docs> as of
   May 2026. Every claim cites a `code.claude.com` URL so future
   agents can verify against the official source.
 - Ships:
-  - `CLAUDE.md.claude-best-practices.fragment` — global rules:
+  - `CLAUDE.md.claude-best-practices.fragment`: global rules:
     200-line size guidance, hierarchy (managed/user/project/local),
     `@path` imports, `.claude/rules/` with `paths:` frontmatter,
     skills replacing custom slash commands, AGENTS.md compat,
     hooks vs CLAUDE.md, auto memory, anti-patterns, HTML-comment
     trick.
-  - `commands/audit-claude-md.md` — `/audit-claude-md` slash command
+  - `commands/audit-claude-md.md`: `/audit-claude-md` slash command
     that audits an existing CLAUDE.md against the rules.
-  - `commands/init-rules.md` — `/init-rules` slash command that
+  - `commands/init-rules.md`: `/init-rules` slash command that
     proposes a `.claude/rules/` split when CLAUDE.md exceeds the
     200-line guidance.
 - 4 new tests covering pack discovery, init auto-application, and
@@ -128,7 +128,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - New decision pack **`docker-multiarch`** (auto-applied on `init`):
   ships a `CLAUDE.md` fragment + `/docker-multiarch-check` slash
-  command. The fragment **self-gates** — explicitly tells the model
+  command. The fragment **self-gates**: explicitly tells the model
   to skip its rules if the current project has no `Dockerfile` /
   `docker-compose.yml`. When Docker IS present: every image must
   build for both `linux/amd64` and `linux/arm64` (Apple Silicon, AWS
@@ -138,7 +138,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   ships a `CLAUDE.md` fragment + five slash commands
   (`/session-start`, `/session-end`, `/track-progress`,
   `/research-source`, `/clarify`) that codify a disciplined session
-  shape — audit on start, track progress + log failures + research
+  shape: audit on start, track progress + log failures + research
   before guessing during work, self-improve on end. Anti-hallucination
   throughout.
 - New `SPEC.md` at the repo root, mirroring the sibling
@@ -154,7 +154,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Added `MANIFEST.in` (belt-and-braces for sdist-consuming tools
   that pre-date the `pyproject.toml`-only era).
 
-## [0.2.0] — 2026-05-14
+## [0.2.0] - 2026-05-14
 
 ### Installer (new, ships in this release)
 
@@ -190,12 +190,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   via explicit `--allow-root` flag.
 - **Prompts** in `registry.json` ask the user yes/no, string, or
   choice questions; `post_install` commands can gate on the answers
-  via `"if": "key=value"` (DRY — no hardcoded special cases).
+  via `"if": "key=value"` (DRY: no hardcoded special cases).
 - **Python bootstrap** via `--with-python` flag installs Python ≥
   required version via `uv python install` when missing (does not
   touch system Python).
 - **Independence**: zero changes to the parent project's
-  `pyproject.toml`. The installer is **vendorable** — copy
+  `pyproject.toml`. The installer is **vendorable**: copy
   `installer/` into any project, swap `registry.json`, ship.
 
 
@@ -214,7 +214,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Per-pack `README.md` → `details.md` to disambiguate from the
   single authoritative top-level README. `decisions show` reads
   `details.md`.
-- Docs index `docs/README.md` removed — folded into the top-level
+- Docs index `docs/README.md` removed: folded into the top-level
   README's TOC.
 - `data/decisions/README.md` (pack-author schema) moved to
   `docs/decisions.md`.
@@ -227,7 +227,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `bootstrap` subcommand wraps init + install + optional sync --push +
   doctor in one validated, prompted sequence. Idempotent. Useful for
   first-time setup on a fresh machine.
-- `bootstrap --no-decisions` flag — skip the auto-applied decision
+- `bootstrap --no-decisions` flag: skip the auto-applied decision
   packs (mirrors `init --no-decisions`).
 - `repair` now restores `*.before-claude-config` backups whose
   symlink got broken (the source file disappeared from the content
@@ -239,10 +239,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `fetch` subcommand: disk-to-disk download of canonical / upstream
   text files. Pure Python (`urllib.request`), HTTPS-only by default,
   atomic write, idempotent, size cap, sha256 verification, UTF-8
-  validation. **Body bytes never enter the response stream** — solves
+  validation. **Body bytes never enter the response stream**: solves
   the content-filter block that hits when the model's file-write tool
   tries to emit a long well-known text (LICENSE, code of conduct, etc.).
-- New decision pack `fetch-canonical-pattern` — slash command +
+- New decision pack `fetch-canonical-pattern`: slash command +
   CLAUDE.md fragment that teaches the model to use `ai-configurator fetch`
   (or `curl -o` as fallback) and to never reach for file-write/edit
   tools on canonical files. Auto-applied on `init`.
@@ -282,7 +282,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `secret_patterns` default expanded to cover SSH keys (`id_rsa*`,
   `id_ed25519*`, `id_ecdsa*`), `*.pfx`, `*.kdbx`, `*.netrc`, `.netrc`,
   `.npmrc`, `.pypirc`.
-- `save_config` merges with the on-disk JSON rather than overwriting —
+- `save_config` merges with the on-disk JSON rather than overwriting:
   unknown future fields are preserved.
 - Symlinks are now relative by default (`relative_symlinks: true`).
   Survives a content-dir relocation. Toggle via `with_relative_symlinks`.
@@ -332,7 +332,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 [0.2.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.2.0
 
-## [0.1.0] — Initial release
+## [0.1.0] - Initial release
 
 ### Added
 - Single `ClaudeConfig` Python class with fluent API for managing
@@ -342,31 +342,31 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `status`, `doctor`.
 - JSON config at `~/.config/claude-config/config.json` (XDG-aware).
   Every field optional, defaults applied for anything missing.
-- Three-layer precedence — CLI flags > env vars
+- Three-layer precedence: CLI flags > env vars
   (`CLAUDE_CONFIG_FILE`, `CLAUDE_CONFIG_CONTENT_DIR`,
   `CLAUDE_CONFIG_TARGET`) > JSON config > class defaults.
 - Opt-in Claude sessions + history tracking via `include_sessions` /
   `include_history` config fields (or `.with_sessions(True)` /
-  `.with_history(True)` fluent setters). Off by default — these
+  `.with_history(True)` fluent setters). Off by default: these
   paths grow fast and the user should choose to ingest them.
 - `track` accepts both files **and directories**. For a directory,
   it moves the dir into content + creates a directory-level symlink
   + adds the dir's basename to `dir_symlink_names` so subsequent
   files inside auto-propagate.
 - Defence-in-depth secret guards via configurable
-  `secret_patterns` — refuses to track or symlink matching files.
+  `secret_patterns`: refuses to track or symlink matching files.
   `init` pre-populates `.gitignore` with the same patterns.
 - Directory-level symlinks (configurable via `dir_symlink_names`,
   defaults to `memory`) so new files inside auto-propagate without
   re-running `install`.
-- Idempotent `install` — re-running reports already-correct counts;
+- Idempotent `install`: re-running reports already-correct counts;
   collisions with real files back up to `<file>.before-claude-config`.
 - `track` workflow: move a real file into the content dir + replace
   original with absolute symlink.
 - `doctor` walks every source file and validates the symlink chain
   via `realpath`-style resolution (handles file-level and dir-level
   symlinks transparently).
-- Pure stdlib — no runtime dependencies beyond Python 3.10+.
+- Pure stdlib: no runtime dependencies beyond Python 3.10+.
 - PEP 561 typed (`py.typed` ships with the wheel).
 - CLI installable via `pip` / `pipx` / `uv tool install`.
 

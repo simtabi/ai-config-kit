@@ -1,5 +1,5 @@
 ---
-description: Audit prose (READMEs, docs, commit bodies) for AI-tell phrases and em-dash overuse. Reports only — no edits.
+description: Audit prose (READMEs, docs, commit bodies) for AI-tell phrases and em-dash overuse. Reports only: no edits.
 argument-hint: <path-or-glob>
 ---
 
@@ -66,8 +66,8 @@ the world of
 ### Step 3: Em-dash audit
 
 ```bash
-grep -nE "[a-zA-Z] — [a-zA-Z]" <file>  # em-dash flanked by letters
-grep -nE " — and —| — but —" <file>     # em-dash sandwich
+grep -nE "[a-zA-Z]: [a-zA-Z]" <file>  # em-dash flanked by letters
+grep -nE ": and —|: but —" <file>     # em-dash sandwich
 ```
 
 For each match, judge: is this a genuine aside (keep), or a "make it
@@ -87,7 +87,7 @@ Markdown table:
 |---|---|---|---|
 | docs/intro.md | 12 | "delve into" | "explore" or just "open" |
 | README.md | 47 | "By following these steps," | (delete; lead with the action) |
-| docs/api.md | 89 | " — and — " | comma + semicolon |
+| docs/api.md | 89 | ": and: " | comma + semicolon |
 ```
 
 ### Step 6: Pause

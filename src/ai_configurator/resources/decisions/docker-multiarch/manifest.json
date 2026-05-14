@@ -1,6 +1,6 @@
 {
   "name": "docker-multiarch",
-  "description": "When the current project uses Docker, build multi-arch images (linux/amd64 + linux/arm64) — Apple Silicon, AWS Graviton, and Intel/AMD desktops all run unmodified.",
+  "description": "When the current project uses Docker, build multi-arch images (linux/amd64 + linux/arm64). Apple Silicon, AWS Graviton, and Intel/AMD desktops all run unmodified.",
   "version": "1.0.0",
   "files": [
     {

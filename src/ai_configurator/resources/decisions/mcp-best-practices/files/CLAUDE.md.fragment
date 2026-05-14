@@ -48,14 +48,14 @@ These are commonly recommended and published by the official org.
 Pin to a real version when you adopt them; the strings below are
 illustrative.
 
-- `@modelcontextprotocol/server-filesystem` — exposes a directory
+- `@modelcontextprotocol/server-filesystem`: exposes a directory
   subtree. Scope it tightly.
-- `@modelcontextprotocol/server-git` — git-repo introspection. Read
+- `@modelcontextprotocol/server-git`: git-repo introspection. Read
   only by default.
-- `@modelcontextprotocol/server-fetch` — HTTP GET / POST. Useful;
+- `@modelcontextprotocol/server-fetch`: HTTP GET / POST. Useful;
   also a potential SSRF vector if you let it hit internal URLs.
-- `@modelcontextprotocol/server-sqlite` — local SQLite query.
-- `@modelcontextprotocol/server-postgres` — Postgres query. Use a
+- `@modelcontextprotocol/server-sqlite`: local SQLite query.
+- `@modelcontextprotocol/server-postgres`: Postgres query. Use a
   read-only DB user.
 
 ### Configuration patterns

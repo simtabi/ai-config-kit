@@ -1,4 +1,4 @@
-# banned-phrases — case-insensitive, one phrase per line.
+# banned-phrases: case-insensitive, one phrase per line.
 # Used by /audit-prose and any linter / pre-commit hook.
 # Source of truth: ai-configurator/resources/decisions/humanistic-style/files/banned-phrases.txt
 #

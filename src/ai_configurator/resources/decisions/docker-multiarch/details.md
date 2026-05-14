@@ -2,7 +2,7 @@
 
 Bakes a single rule into every Claude Code session: **when the
 current project uses Docker, every image we build runs on both
-`linux/amd64` and `linux/arm64`** — Apple Silicon Macs, AWS Graviton,
+`linux/amd64` and `linux/arm64`**: Apple Silicon Macs, AWS Graviton,
 Ampere, Raspberry Pi 4+, and the entire Intel/AMD desktop world all
 run the same image without `--platform` flags.
 
@@ -10,7 +10,7 @@ This pack ships:
 
 | File | Purpose |
 |---|---|
-| `CLAUDE.md.docker-multiarch.fragment` | Global rules to add to your `CLAUDE.md` so the policy fires whenever a Docker-related file (`Dockerfile`, `docker-compose.yml`, `Containerfile`) is present. **The fragment self-gates** — it explicitly says "if no Dockerfile in this project, skip these rules". |
+| `CLAUDE.md.docker-multiarch.fragment` | Global rules to add to your `CLAUDE.md` so the policy fires whenever a Docker-related file (`Dockerfile`, `docker-compose.yml`, `Containerfile`) is present. **The fragment self-gates**: it explicitly says "if no Dockerfile in this project, skip these rules". |
 | `commands/docker-multiarch-check.md` | `/docker-multiarch-check` slash command that audits the current Dockerfile + CI for multi-arch readiness. |
 
 ## Why self-gating
@@ -40,14 +40,14 @@ cat ~/.config/claude-config/content/claude/CLAUDE.md.docker-multiarch.fragment \
 ai-configurator sync -m "adopt docker-multiarch"
 ```
 
-This pack is **auto-applied** by `ai-configurator init` — new
+This pack is **auto-applied** by `ai-configurator init`: new
 content dirs get the slash command + fragment automatically.
 
 ## Why this matters in 2026
 
 - **Apple Silicon is 70 %+ of new developer machines**. Any image that
   only builds for `amd64` makes those devs sit through `qemu`
-  emulation every `docker compose up` — slow + unreliable.
+  emulation every `docker compose up`: slow + unreliable.
 - **AWS Graviton (ARM) is 20–40 % cheaper** per vCPU for the same
   workload. Companies move production fleets to it; an `amd64`-only
   image blocks that migration.
@@ -58,7 +58,7 @@ content dirs get the slash command + fragment automatically.
 
 ## Linux installs too
 
-The same applies to non-Docker Linux installs of any tool we ship —
-pure-Python tools are arch-agnostic but anything with C extensions
+The same applies to non-Docker Linux installs of any tool we ship.
+Pure-Python tools are arch-agnostic but anything with C extensions
 must publish `manylinux2014_x86_64` AND `manylinux2014_aarch64`
 wheels. The fragment covers both.

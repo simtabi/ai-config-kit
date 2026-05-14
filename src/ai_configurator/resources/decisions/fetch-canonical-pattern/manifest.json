@@ -1,6 +1,6 @@
 {
   "name": "fetch-canonical-pattern",
-  "description": "For canonical / upstream files (licenses, codes of conduct, etc.), the model must never emit body bytes — use a disk-to-disk download.",
+  "description": "For canonical / upstream files (licenses, codes of conduct, etc.), the model must never emit body bytes. Use a disk-to-disk download.",
   "version": "1.0.0",
   "files": [
     {

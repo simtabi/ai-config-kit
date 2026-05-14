@@ -44,7 +44,7 @@ Examples:
 | HTTP 200 from URL | `curl -fsSL -o /dev/null --max-time 2 https://...` |
 | GitHub Actions run finishes | `! gh run list --limit 1 --json status \| grep -q in_progress` |
 
-Run the loop via the Monitor tool — each stdout line surfaces as a
+Run the loop via the Monitor tool: each stdout line surfaces as a
 notification; the loop exit fires a completion notification.
 
 **(C) Fixed delay**
@@ -72,7 +72,7 @@ If they say "go", invoke it. After completion, surface one line:
 - `sleep 30 && next-cmd` (will be blocked)
 - `sleep 10; sleep 10; sleep 10` (same; runtime detects chained sleeps)
 - `python3 -c "import time; time.sleep(30)"; next-cmd` (same)
-- `while true; do <check>; sleep 1; done` (no exit condition — burns
+- `while true; do <check>; sleep 1; done` (no exit condition: burns
   cache indefinitely)
 
 If the user really wants a fixed delay (case C), confirm out loud

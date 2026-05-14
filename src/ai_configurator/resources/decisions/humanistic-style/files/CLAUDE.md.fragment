@@ -22,7 +22,7 @@ these steps", "As we can see".
 **Tour-guide voice**: "Now let's", "Note that", "Importantly",
 "Important:", "**Important:**", "Please note", "It's worth noting".
 
-**Em-dash sandwich**: " — and — ", " — but — ". Em-dashes inside
+**Em-dash sandwich**: ": and: ", ": but: ". Em-dashes inside
 parentheticals where commas, colons, or periods serve better.
 **Use em-dash only for genuine asides**, not as a "make it sound
 sophisticated" tic. En-dashes (`–`) belong in date ranges only.
@@ -46,7 +46,7 @@ Match the language's idiomatic format. Public-API surfaces get a
 doc-block; private helpers get a one-line comment only when the
 intent is non-obvious.
 
-**Python — Sphinx / reST**:
+**Python: Sphinx / reST**:
 
 ```python
 def fetch_user(user_id: int, *, include_deleted: bool = False) -> User:
@@ -60,7 +60,7 @@ def fetch_user(user_id: int, *, include_deleted: bool = False) -> User:
     """
 ```
 
-**PHP — PHPDoc** (Laravel idiomatic):
+**PHP: PHPDoc** (Laravel idiomatic):
 
 ```php
 /**
@@ -75,7 +75,7 @@ def fetch_user(user_id: int, *, include_deleted: bool = False) -> User:
 public function fetchUser(int $userId, bool $includeDeleted = false): User
 ```
 
-**JavaScript / TypeScript — JSDoc**:
+**JavaScript / TypeScript: JSDoc**:
 
 ```typescript
 /**
@@ -142,4 +142,4 @@ extend. That means:
 
 Run `/audit-prose` on any prose file (READMEs, blog posts, commit
 bodies). Run `/audit-docblocks` on any source file. Both report
-findings without editing — the user picks fixes.
+findings without editing: the user picks fixes.

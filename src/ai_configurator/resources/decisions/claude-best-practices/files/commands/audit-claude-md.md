@@ -3,7 +3,7 @@ description: Audit the current project's CLAUDE.md against the 2026 best-practic
 ---
 
 Audit the project's `CLAUDE.md` file(s) against the rules from the
-`claude-best-practices` decision pack. **Report findings only — do
+`claude-best-practices` decision pack. **Report findings only: do
 not change any file** until I confirm a fix.
 
 ### Step 1: Locate every CLAUDE.md in scope
@@ -24,8 +24,8 @@ Cited: <https://code.claude.com/docs/en/memory#write-effective-instructions>
 
 - Is there a project-level CLAUDE.md (`./CLAUDE.md` or
   `./.claude/CLAUDE.md`)? If not, suggest `claude /init`.
-- Is there a `CLAUDE.local.md` that's NOT in `.gitignore`? Flag it —
-  it's about to be committed by accident.
+- Is there a `CLAUDE.local.md` that's NOT in `.gitignore`? Flag it.
+  It's about to be committed by accident.
 - Are there sibling subdirectory CLAUDE.md files that contradict
   each other? Read both and report any directly conflicting rule.
 
@@ -39,7 +39,7 @@ In each CLAUDE.md, look for:
   moving to a skill.
 - **Conversation paste**: "User said X, I replied Y, then…" patterns.
   Suggest moving to auto memory.
-- **Outdated references**: `commands/` mentioned for new work — the
+- **Outdated references**: `commands/` mentioned for new work: the
   modern path is `skills/<name>/SKILL.md`.
 
 ### Step 5: Structural fixes
@@ -48,7 +48,7 @@ In each CLAUDE.md, look for:
 - Are bullets specific enough? "Use 2-space indentation" beats
   "Format code properly".
 - Block-level HTML comments are stripped before reaching the
-  model — confirm the user knows they cost nothing.
+  model: confirm the user knows they cost nothing.
 
 ### Step 6: Report
 
@@ -69,5 +69,5 @@ finding. Pause for confirmation before applying.
 
 - Don't edit any file.
 - Don't `git add` / `git commit`.
-- Don't paraphrase file contents — cite `path:line` only.
+- Don't paraphrase file contents: cite `path:line` only.
 - Don't grep arbitrary files outside the CLAUDE.md set.

@@ -2,7 +2,7 @@
 description: Audit configured MCP servers (user + project scope). Flag unpinned versions, secrets in repo files, overly-broad filesystem scopes.
 ---
 
-Audit Model Context Protocol (MCP) configuration. Reports only — no
+Audit Model Context Protocol (MCP) configuration. Reports only: no
 edits.
 
 ### Step 1: Enumerate
@@ -56,4 +56,4 @@ Flag if `mcp__*` is in `allow` without per-server narrowing.
 ### Step 5: Do not edit
 
 Print the report. Pause for the user. Adding / removing MCP servers
-is `/add-mcp-server` or manual editing — not this audit's job.
+is `/add-mcp-server` or manual editing: not this audit's job.

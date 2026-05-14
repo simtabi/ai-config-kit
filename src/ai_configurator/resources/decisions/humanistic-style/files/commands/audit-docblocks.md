@@ -45,7 +45,7 @@ grep -n -E "^export (function|class|const|interface)" src/**/*.{ts,tsx}
 For each public symbol, check whether a doc-block precedes it. If
 present, check the format matches the language:
 
-**Python — Sphinx**:
+**Python: Sphinx**:
 ```python
 """One-line summary.
 
@@ -55,7 +55,7 @@ present, check the format matches the language:
 """
 ```
 
-**PHP — PHPDoc**:
+**PHP: PHPDoc**:
 ```php
 /**
  * One-line summary.
@@ -66,7 +66,7 @@ present, check the format matches the language:
  */
 ```
 
-**JS / TS — JSDoc**:
+**JS / TS: JSDoc**:
 ```typescript
 /**
  * One-line summary.

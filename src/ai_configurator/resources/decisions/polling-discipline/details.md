@@ -36,5 +36,5 @@ through picking one.
 
 Auto-applied on `ai-configurator init` (added to
 `DEFAULT_DECISIONS_ON_INIT`). Existing installs receive it on the
-next CLI invocation via `reconcile()` — the pack is new, so the
+next CLI invocation via `reconcile()`: the pack is new, so the
 non-clobbering apply ships it without overwriting anything.
