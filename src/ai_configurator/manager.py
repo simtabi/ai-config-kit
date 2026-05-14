@@ -323,6 +323,9 @@ class DecisionFile:
 
     src: str
     dest: str
+    # Octal string ("0755") set on dest after copy. None leaves the mode at
+    # umask default. Only the low 12 bits (perms + sticky) are honored.
+    mode: str | None = None
 
 
 @dataclass(frozen=True)
@@ -616,11 +619,13 @@ class ClaudeConfig:
         "fetch-canonical-pattern",
         "session-protocol",
         "docker-multiarch",
+        "docker-env-interpolation",
         "claude-best-practices",
         "humanistic-style",
         "docs-structure",
         "mcp-best-practices",
         "safety-net-commits",
+        "vendor-portability",
     )
 
     # Minimum supported Python — kept in sync with ``pyproject.toml``.
@@ -1697,6 +1702,16 @@ class ClaudeConfig:
             if not dry_run:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(src.read_bytes())
+                if f.mode is not None:
+                    try:
+                        mode_bits = int(f.mode, 8) & 0o7777
+                    except ValueError as e:
+                        raise ConfigError(
+                            f"pack '{name}': invalid mode '{f.mode}' "
+                            f"for {f.dest} (expected octal string)"
+                        ) from e
+                    with contextlib.suppress(OSError):
+                        target.chmod(mode_bits)
             if exists:
                 overwritten.append(f.dest)
             else:
@@ -1712,7 +1727,12 @@ class ClaudeConfig:
 
     def _build_pack(self, data: dict[str, Any], pack_dir: Any) -> DecisionPack:
         files = [
-            DecisionFile(src=f["src"], dest=f["dest"]) for f in data.get("files", [])
+            DecisionFile(
+                src=f["src"],
+                dest=f["dest"],
+                mode=f.get("mode"),
+            )
+            for f in data.get("files", [])
         ]
         readme_path = pack_dir / "details.md"
         readme = ""

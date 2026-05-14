@@ -1297,6 +1297,8 @@ def test_reconcile_if_enabled_skips_when_no_config(cfg: ClaudeConfig) -> None:
     "docs-structure",
     "mcp-best-practices",
     "safety-net-commits",
+    "vendor-portability",
+    "docker-env-interpolation",
 ])
 def test_new_packs_listed(cfg: ClaudeConfig, pack: str) -> None:
     listing = cfg.decisions_list()
@@ -1364,6 +1366,54 @@ def test_safety_net_fragment_requires_explicit_verb(cfg: ClaudeConfig) -> None:
     assert "explicit verb" in body.lower() or "always ask" in body.lower()
     # Forbid silent destructive ops
     assert "without explicit" in body.lower() or "explicit verb" in body.lower()
+
+
+def test_docker_env_interpolation_ships_executable_script(cfg: ClaudeConfig) -> None:
+    """The render-env.sh script must land executable so users can call it
+    directly from ~/.claude/scripts/render-env.sh without a shell prefix."""
+    cfg.init(init_git=False)
+    script = cfg.src_dir / "scripts" / "render-env.sh"
+    assert script.is_file()
+    body = script.read_text(encoding="utf-8")
+    # POSIX shell script, not Python — Docker can't natively read .py
+    assert body.startswith("#!/")
+    assert "sh" in body.splitlines()[0]
+    # Executable bit (manifest declares mode 0755)
+    mode = script.stat().st_mode & 0o777
+    assert mode == 0o755, f"expected 0755 got {oct(mode)}"
+
+
+def test_docker_env_interpolation_fragment_documents_precedence(
+    cfg: ClaudeConfig,
+) -> None:
+    cfg.init(init_git=False)
+    body = (cfg.src_dir / "CLAUDE.md.docker-env-interpolation.fragment").read_text(
+        encoding="utf-8"
+    )
+    # Precedence chain must match Docker Compose behavior
+    for token in ("Shell environment", "--local", "--input", "--example"):
+        assert token in body, f"missing precedence rung: {token}"
+    # Invocation no longer goes through python3
+    assert "python3" not in body
+    assert "render-env.sh" in body
+
+
+def test_decision_mode_field_applies_to_dest(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """A pack manifest with mode='0755' must produce an executable dest.
+
+    Verifies the generic mechanism — not just the docker-env-interpolation
+    pack — so future packs can ship executable artifacts the same way.
+    """
+    cfg.init(init_git=False)
+    # docker-env-interpolation is the canonical user of the mode field
+    pack = cfg.decisions_show("docker-env-interpolation")
+    sh_entry = next(f for f in pack.files if f.dest.endswith("render-env.sh"))
+    assert sh_entry.mode == "0755"
+    # And the file on disk reflects it
+    script = cfg.src_dir / sh_entry.dest
+    assert script.stat().st_mode & 0o111, "executable bit not set"
 
 
 # --- multi-vendor support ------------------------------------------------

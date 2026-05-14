@@ -1,0 +1,20 @@
+{
+  "name": "docker-env-interpolation",
+  "description": "Render a fully-resolved .env from .env + .env.local + shell env. Docker Compose handles interpolation natively in .env now, but many other tools that read .env do not — this script flattens for portability.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.docker-env-interpolation.fragment"
+    },
+    {
+      "src": "files/commands/render-env.md",
+      "dest": "commands/render-env.md"
+    },
+    {
+      "src": "files/scripts/render-env.sh",
+      "dest": "scripts/render-env.sh",
+      "mode": "0755"
+    }
+  ]
+}

@@ -46,15 +46,37 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   after milestones, at session end). Honours the standing "no
   commit without an explicit verb" rule. Two slash commands:
   `/checkpoint-now` and `/review-changes`.
+- **`docker-env-interpolation`** (auto-applied): ships a POSIX
+  shell script (`scripts/render-env.sh`) that flattens layered
+  `.env` files into a fully-resolved output. Handles `$VAR`,
+  `${VAR}`, `${VAR:-default}`, `${VAR-default}`, `${VAR:?error}`,
+  `${VAR?error}`, and `$$` escapes. Layered precedence matches
+  Docker Compose: shell env > `--local` > `--input` > `--example`.
+  For non-Docker consumers of `.env`, CI shells, and pre-deploy
+  validation. Shell, not Python, because Docker can't natively
+  invoke Python scripts. Includes `/render-env` slash command.
+- **`vendor-portability`** (auto-applied): AGENTS.md canonical
+  pattern for cross-vendor portability between Claude / Codex /
+  Cursor / Cline / Aider / Windsurf / Copilot.
+
+### Added — decision-pack `mode` field
+
+- Each entry in a pack's `manifest.json::files` may now specify
+  `"mode": "0755"` (or any octal string). Applied with `chmod`
+  after copy. Used by `docker-env-interpolation` so the rendered
+  `render-env.sh` lands executable. Default (mode omitted) leaves
+  the dest at umask.
 
 ### Changed
 
-- `DEFAULT_DECISIONS_ON_INIT` now includes 9 packs (was 5):
+- `DEFAULT_DECISIONS_ON_INIT` now includes 11 packs (was 9):
   `script-generation-pattern`, `fetch-canonical-pattern`,
-  `session-protocol`, `docker-multiarch`, `claude-best-practices`,
+  `session-protocol`, `docker-multiarch`,
+  `docker-env-interpolation`, `claude-best-practices`,
   `humanistic-style`, `docs-structure`, `mcp-best-practices`,
-  `safety-net-commits`. The `core` pack stays opt-in.
-- `decisions list` now shows 10 bundled packs (1 opt-in + 9 auto).
+  `safety-net-commits`, `vendor-portability`. The `core` pack
+  stays opt-in.
+- `decisions list` now shows 12 bundled packs (1 opt-in + 11 auto).
 
 ### Added — auto-reconcile-on-upgrade
 

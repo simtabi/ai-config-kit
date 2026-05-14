@@ -1,0 +1,89 @@
+## `.env` interpolation (Docker + non-Docker tooling)
+
+Docker Compose interpolates `${VAR}` references inside `.env` files
+natively as of recent Compose versions
+(<https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/>).
+Some teams still need a "render once, ship a flat file" step:
+
+- **Non-Docker consumers** of `.env` (CI shells, older deployment
+  tools, language dotenv libs that don't interpolate).
+- **Cross-file resolution** with explicit precedence
+  (`.env.local` overrides `.env`, etc.).
+- **Pre-deploy validation** that every reference resolves.
+- **Audit** of what `${VAR}` actually expands to without booting a
+  container.
+
+For those cases, `render-env.sh` (ships at
+`~/.claude/scripts/render-env.sh`) does the interpolation up front
+and writes a flat `.env.resolved` (or stdout).
+
+### Precedence order (matches Docker Compose)
+
+1. Shell environment (highest)
+2. `--local <file>` (typically `.env.local`)
+3. `--input <file>` (typically `.env`)
+4. `--example <file>` (defaults from `.env.example`; lowest)
+
+### Syntax supported
+
+| Form | Behaviour |
+|---|---|
+| `$VAR` | Replace with value, error if missing |
+| `${VAR}` | Same, braced form |
+| `${VAR:-default}` | Use default if unset or empty |
+| `${VAR-default}` | Use default if unset (empty allowed) |
+| `${VAR:?error message}` | Error if unset or empty |
+| `${VAR?error message}` | Error if unset |
+| `$$` / `$${VAR}` | Literal `$` / `${VAR}` (escape) |
+
+### When to use this script
+
+- A docker-compose project where some service reads `.env` directly
+  (not via compose interpolation).
+- A CI step that does `set -a; source .env; set +a` without an
+  interpolation layer.
+- A Kubernetes / Nomad / serverless deploy that reads a flat env
+  file.
+
+### When NOT to use it
+
+- Pure docker-compose, no other consumers: Compose interpolates
+  natively. Run `docker compose config` to see the resolved values.
+- 12-factor apps where every env var comes from the runtime
+  environment (not files). Skip the file layer entirely.
+
+### Wire into Dockerfile or compose
+
+```bash
+# Before docker compose up:
+~/.claude/scripts/render-env.sh \
+    --input .env \
+    --local .env.local \
+    --example .env.example \
+    --strict \
+    --output .env.resolved
+
+docker compose --env-file .env.resolved up -d
+```
+
+### Wire into CI
+
+```yaml
+- name: Render env
+  run: |
+    scripts/render-env.sh \
+        --input .env.${{ env.STAGE }} \
+        --strict \
+        --output .env.resolved
+
+- name: Validate
+  run: |
+    test -s .env.resolved
+    ! grep -E '\$\{[A-Z_]+\}' .env.resolved   # no unresolved refs
+```
+
+### Run `/render-env` to walk a project
+
+The slash command audits the project's env files + proposes the
+right `render-env.sh` invocation. It doesn't execute without
+confirmation.
