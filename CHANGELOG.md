@@ -6,6 +6,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-14
+
+### Added: render-env.sh post-write mode verification
+
+`chmod 600` on the rendered output file can silently no-op on
+filesystems that don't honour POSIX mode bits (FAT, exFAT, some
+SMB mounts, certain Docker bind-mounts). After write, the script
+reads back the actual mode via `stat -c` (GNU) or `stat -f` (BSD)
+and emits a loud `WARNING` to stderr if the file ended up
+world-readable. Belt-and-suspenders for secret protection.
+
 ### Added: permission self-heal (`heal` verb, `doctor --heal` shortcut)
 
 - `ai-configurator heal [--yes] [--dry-run]`: audits permission +
@@ -415,6 +426,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   a secret pattern.
 - `view` refuses path-traversal (`../`).
 
+[0.4.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.0
 [0.3.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.3.0
 [0.2.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.2.0
 
