@@ -1,0 +1,24 @@
+{
+  "name": "model-overload-resilience",
+  "description": "Recover from model-provider capacity overload (Anthropic 529, OpenAI 503, generic 429). Ships a multi-provider retry playbook, off-peak window data + slash command, and an illustrative Python retry helper.",
+  "version": "1.0.0",
+  "files": [
+    {
+      "src": "files/CLAUDE.md.fragment",
+      "dest": "CLAUDE.md.model-overload-resilience.fragment"
+    },
+    {
+      "src": "files/commands/capacity-check.md",
+      "dest": "commands/capacity-check.md"
+    },
+    {
+      "src": "files/data/off-peak-windows.json",
+      "dest": "data/off-peak-windows.json"
+    },
+    {
+      "src": "files/scripts/api-retry.py",
+      "dest": "scripts/api-retry.py",
+      "mode": "0755"
+    }
+  ]
+}

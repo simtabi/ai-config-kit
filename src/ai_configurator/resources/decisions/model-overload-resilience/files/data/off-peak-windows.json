@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "data_updated": "2026-05-14",
+  "data_source": "observational; providers do not publish exact load curves. Treat as heuristic.",
+  "notes": [
+    "Hours are local to the user's timezone unless noted as 'reference: PT'.",
+    "Peak windows are when 529/503/over-capacity errors are most common.",
+    "Off-peak windows are the inverse: best chance of clean throughput.",
+    "All providers see weekend dips; Sunday morning Pacific is the quietest stretch of the week."
+  ],
+  "providers": {
+    "anthropic": {
+      "display_name": "Anthropic (Claude API)",
+      "overload_status_codes": [529],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "America/Los_Angeles",
+      "peak_weekdays_local": "Mon-Fri 09:00-18:00, heaviest 10:00-14:00",
+      "off_peak_windows": {
+        "America/Los_Angeles": "22:00-06:00 weekdays; all weekend",
+        "America/Denver": "23:00-07:00 weekdays; all weekend",
+        "America/Chicago": "00:00-08:00 weekdays; all weekend",
+        "America/New_York": "01:00-09:00 weekdays; all weekend",
+        "UTC": "05:00-13:00 weekdays",
+        "Europe/London": "06:00-14:00 (winter) / 07:00-15:00 (summer)",
+        "Europe/Berlin": "07:00-15:00 (winter) / 08:00-16:00 (summer)",
+        "Europe/Paris": "07:00-15:00 (winter) / 08:00-16:00 (summer)",
+        "Africa/Nairobi": "08:00-16:00",
+        "Asia/Dubai": "09:00-17:00",
+        "Asia/Kolkata": "10:30-18:30",
+        "Asia/Singapore": "13:00-21:00",
+        "Asia/Shanghai": "13:00-21:00",
+        "Asia/Tokyo": "14:00-22:00",
+        "Asia/Seoul": "14:00-22:00",
+        "Australia/Sydney": "15:00-23:00 (winter) / 16:00-00:00 (summer)",
+        "Pacific/Auckland": "17:00-01:00 (winter) / 18:00-02:00 (summer)"
+      },
+      "shifts": {
+        "us_holiday_weeks": "Thanksgiving, Christmas to New Year, July 4 week behave like off-peak.",
+        "us_quarter_end": "Last week of Mar/Jun/Sep/Dec slightly heavier.",
+        "post_model_launch": "Day-of and first 48h after a new Opus/Sonnet release are hot regardless of hour."
+      },
+      "batch_api": "https://docs.anthropic.com/en/api/messages-batches"
+    },
+    "openai": {
+      "display_name": "OpenAI (gpt-* APIs)",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "America/Los_Angeles",
+      "peak_weekdays_local": "Mon-Fri 08:00-19:00, heaviest 09:00-15:00 (broader than Anthropic due to enterprise batch overlap)",
+      "off_peak_windows": {
+        "America/Los_Angeles": "21:00-05:00 weekdays; all weekend",
+        "America/New_York": "00:00-08:00 weekdays; all weekend",
+        "UTC": "05:00-13:00 weekdays",
+        "Europe/London": "06:00-14:00",
+        "Europe/Berlin": "07:00-15:00",
+        "Asia/Kolkata": "10:30-18:30",
+        "Asia/Singapore": "13:00-21:00",
+        "Asia/Tokyo": "14:00-22:00",
+        "Australia/Sydney": "15:00-23:00"
+      },
+      "batch_api": "https://platform.openai.com/docs/api-reference/batch"
+    },
+    "codex": {
+      "display_name": "OpenAI Codex CLI (uses OpenAI backend)",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "America/Los_Angeles",
+      "peak_weekdays_local": "inherits OpenAI's curve",
+      "off_peak_windows": "see openai",
+      "notes": "Codex routes to OpenAI's gpt-* tier; capacity profile matches OpenAI."
+    },
+    "google": {
+      "display_name": "Google AI (Gemini / Vertex)",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "America/Los_Angeles",
+      "peak_weekdays_local": "Mon-Fri 09:00-18:00",
+      "off_peak_windows": {
+        "America/Los_Angeles": "22:00-06:00 weekdays; all weekend",
+        "America/New_York": "01:00-09:00 weekdays; all weekend",
+        "UTC": "05:00-13:00 weekdays",
+        "Europe/London": "06:00-14:00",
+        "Asia/Tokyo": "14:00-22:00"
+      },
+      "batch_api": "https://ai.google.dev/api/batch"
+    },
+    "cohere": {
+      "display_name": "Cohere",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "America/Los_Angeles",
+      "peak_weekdays_local": "Mon-Fri 09:00-18:00 (lighter than Anthropic/OpenAI)",
+      "off_peak_windows": "broadly similar; less acute peak"
+    },
+    "mistral": {
+      "display_name": "Mistral AI",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [429],
+      "peak_reference_tz": "Europe/Paris",
+      "peak_weekdays_local": "Mon-Fri 09:00-18:00 CET (European-centric customer base)",
+      "off_peak_windows": {
+        "Europe/Paris": "19:00-08:00 weekdays; all weekend",
+        "America/Los_Angeles": "00:00-08:00 weekdays",
+        "America/New_York": "03:00-11:00 weekdays"
+      },
+      "notes": "Mistral's load curve is European-aligned, not US-aligned. The inverse of Anthropic in many cases."
+    },
+    "local": {
+      "display_name": "Local backends (Ollama, vLLM, llama.cpp server)",
+      "overload_status_codes": [503],
+      "rate_limit_status_codes": [],
+      "notes": "503 here means the local process is overloaded or crashed. Retry briefly; if persistent, restart the backend or switch to a larger model server."
+    }
+  },
+  "universal_sweet_spots": [
+    "Sunday morning Pacific is the quietest stretch of the week for US-aligned providers.",
+    "European morning (before noon local) is excellent for US providers (US not yet awake).",
+    "Asia-Pacific morning through early afternoon is the golden window for US providers."
+  ]
+}

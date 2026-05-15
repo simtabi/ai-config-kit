@@ -60,6 +60,7 @@ Auto-applied by `ai-configurator init` (skip with `--no-decisions`):
 | `safety-net-commits` | Prompts the user to commit a checkpoint at safe moments. `/checkpoint-now` and `/review-changes`. |
 | `vendor-portability` | AGENTS.md canonical pattern + `/audit-vendor-config`. Now points at `compose-agents-md` + `project-install` as the automated path. |
 | `polling-discipline` | "Don't chain sleeps" rule + `/wait-for` slash command. Heads off the runtime block that catches `sleep N; check` patterns. |
+| `model-overload-resilience` | Multi-provider playbook for Anthropic 529, OpenAI/Codex 503, generic 429. Ships per-timezone off-peak data (`data/off-peak-windows.json`), `/capacity-check` slash command, and `scripts/api-retry.py` retry helper. |
 
 Opt-in:
 

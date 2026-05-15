@@ -1302,6 +1302,7 @@ def test_reconcile_if_enabled_skips_when_no_config(cfg: ClaudeConfig) -> None:
     "vendor-portability",
     "docker-env-interpolation",
     "polling-discipline",
+    "model-overload-resilience",
 ])
 def test_new_packs_listed(cfg: ClaudeConfig, pack: str) -> None:
     listing = cfg.decisions_list()
@@ -2218,3 +2219,138 @@ def test_audit_permissions_skip_git_subtree(
     junk.chmod(0o666)
     report = cfg.audit_permissions()
     assert not any(f.path == junk for f in report.findings)
+
+
+# --- model-overload-resilience pack ---------------------------------------
+
+
+def test_overload_pack_ships_all_four_files(cfg: ClaudeConfig) -> None:
+    """Init drops all four declared files at their dest paths.
+
+    Pack ships: CLAUDE.md fragment, /capacity-check command,
+    off-peak data JSON, api-retry Python helper.
+    """
+    cfg.init(init_git=False)
+    assert (cfg.src_dir / "CLAUDE.md.model-overload-resilience.fragment").is_file()
+    assert (cfg.src_dir / "commands" / "capacity-check.md").is_file()
+    assert (cfg.src_dir / "data" / "off-peak-windows.json").is_file()
+    assert (cfg.src_dir / "scripts" / "api-retry.py").is_file()
+
+
+def test_overload_pack_python_script_is_executable(
+    cfg: ClaudeConfig,
+) -> None:
+    """The Python retry helper ships executable (manifest mode 0755)."""
+    cfg.init(init_git=False)
+    script = cfg.src_dir / "scripts" / "api-retry.py"
+    mode = script.stat().st_mode & 0o111
+    assert mode != 0, f"api-retry.py must be executable, got {oct(mode)}"
+
+
+def test_overload_fragment_lists_all_supported_providers(
+    cfg: ClaudeConfig,
+) -> None:
+    """The fragment must enumerate every provider the JSON covers, so
+    the rules + data don't drift apart silently."""
+    cfg.init(init_git=False)
+    body = (
+        cfg.src_dir / "CLAUDE.md.model-overload-resilience.fragment"
+    ).read_text(encoding="utf-8").lower()
+    for provider in ("anthropic", "openai", "codex", "google", "cohere",
+                     "mistral"):
+        assert provider in body, f"missing provider in fragment: {provider}"
+
+
+def test_overload_fragment_distinguishes_529_from_429(
+    cfg: ClaudeConfig,
+) -> None:
+    """The 529-vs-429 distinction is the most important conceptual
+    point in the pack; the fragment must surface it explicitly."""
+    cfg.init(init_git=False)
+    body = (
+        cfg.src_dir / "CLAUDE.md.model-overload-resilience.fragment"
+    ).read_text(encoding="utf-8")
+    assert "529" in body and "429" in body
+    # Both codes must appear in the per-provider table AND in prose
+    assert body.count("529") >= 3
+    assert body.count("429") >= 3
+
+
+def test_overload_json_data_parses_and_covers_seven_providers(
+    cfg: ClaudeConfig,
+) -> None:
+    """The off-peak JSON is the data dependency for /capacity-check and
+    any downstream tool. Must parse cleanly and cover the expected set."""
+    import json as _json
+    cfg.init(init_git=False)
+    data = _json.loads(
+        (cfg.src_dir / "data" / "off-peak-windows.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert data["schema_version"] == 1
+    providers = set(data["providers"].keys())
+    for required in {"anthropic", "openai", "codex", "google", "cohere",
+                     "mistral", "local"}:
+        assert required in providers, f"missing provider in data: {required}"
+
+
+def test_overload_json_anthropic_covers_major_timezones(
+    cfg: ClaudeConfig,
+) -> None:
+    """The Anthropic block has to cover the timezones the slash command
+    will actually look up. The set is heuristic but should at least span
+    Americas / Europe / Africa / Asia / Oceania."""
+    import json as _json
+    cfg.init(init_git=False)
+    data = _json.loads(
+        (cfg.src_dir / "data" / "off-peak-windows.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    windows = data["providers"]["anthropic"]["off_peak_windows"]
+    for tz in (
+        "America/Los_Angeles",
+        "America/New_York",
+        "Europe/London",
+        "Africa/Nairobi",
+        "Asia/Tokyo",
+        "Australia/Sydney",
+    ):
+        assert tz in windows, f"missing tz coverage: {tz}"
+
+
+def test_overload_capacity_check_command_invokes_data_file(
+    cfg: ClaudeConfig,
+) -> None:
+    """The slash command must reference the JSON path, not duplicate
+    its contents in prose (avoids drift between command + data)."""
+    cfg.init(init_git=False)
+    body = (cfg.src_dir / "commands" / "capacity-check.md").read_text(
+        encoding="utf-8"
+    )
+    assert "off-peak-windows.json" in body
+    assert "~/.claude" in body  # explicit reference to the installed path
+
+
+def test_overload_python_helper_self_test_passes(
+    cfg: ClaudeConfig,
+) -> None:
+    """Run the api-retry.py self-test in a subprocess. The helper's
+    __main__ block exercises a 529-then-success retry path with a
+    very short delay; should exit 0 in well under a second."""
+    import subprocess
+    import sys
+    cfg.init(init_git=False)
+    script = cfg.src_dir / "scripts" / "api-retry.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"api-retry.py self-test failed:\nstdout: {result.stdout}\n"
+        f"stderr: {result.stderr}"
+    )
+    assert "self-test ok" in result.stdout

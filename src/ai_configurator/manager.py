@@ -795,6 +795,7 @@ class ClaudeConfig:
         "safety-net-commits",
         "vendor-portability",
         "polling-discipline",
+        "model-overload-resilience",
     )
 
     # Minimum supported Python: kept in sync with ``pyproject.toml``.

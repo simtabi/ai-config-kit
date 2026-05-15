@@ -1,0 +1,116 @@
+## Model-provider overload resilience
+
+When a model-provider API returns a capacity-overload status code,
+the right reflex is retry-with-backoff plus a graceful degradation
+plan. Different providers use different status codes; the playbook
+is the same.
+
+### Per-provider status codes
+
+| Provider | Code | Meaning | Default response |
+|---|---|---|---|
+| Anthropic (Claude API) | **529** | Fleet over capacity (all customers affected). | Retry with backoff. |
+| Anthropic | **429** | *Your* quota exceeded. | Slow down; respect `Retry-After`. |
+| OpenAI / Azure OpenAI | **503** | Service unavailable / over capacity. | Retry with backoff. |
+| OpenAI / Azure OpenAI | **429** | Quota or rate-limit hit. | Slow down; respect `Retry-After`. |
+| Codex (OpenAI-backed) | same as OpenAI | (uses OpenAI infrastructure) | same |
+| Google (Gemini / Vertex) | **429** / **503** | Per-quota / capacity. | Retry; respect `Retry-After`. |
+| Cohere | **429** / **503** | Per-quota / capacity. | Retry; respect `Retry-After`. |
+| Mistral | **429** / **503** | Per-quota / capacity. | Retry; respect `Retry-After`. |
+| Local (Ollama, vLLM) | **503** | Backend unavailable. | Retry briefly; consider switching backend. |
+
+**529 vs 429** is the key distinction:
+
+- `529` (Anthropic) means the *fleet* is overloaded. Affects every
+  customer of that tier. Retry will likely succeed within seconds.
+- `429` is *your* quota. Retrying immediately just hits the same
+  ceiling. Slow down (or upgrade the tier).
+
+### The seven-point playbook
+
+1. **Retry with exponential backoff + jitter.** Start ~1s, double
+   per attempt, jitter 25 percent, cap at 30s. Most capacity
+   incidents clear in single-digit seconds.
+2. **Respect `Retry-After`.** If the response header is present,
+   use it verbatim instead of your own delay.
+3. **Cap concurrency.** A small semaphore (4-8 in flight) prevents
+   you from amplifying a capacity squeeze.
+4. **Fallback model.** Opus 529: retry the same prompt on Sonnet
+   automatically. OpenAI gpt-4o 503: try gpt-4o-mini. Most
+   workflows degrade gracefully.
+5. **Cache aggressively.** Use prompt-caching for static prompt
+   prefixes (Anthropic Prompt Caching, OpenAI cached_input).
+   Fewer tokens per call -> fewer collisions with the cap.
+6. **Move heavy jobs off-peak.** Schedule batch work for your local
+   late night or weekend mornings Pacific time. See
+   `data/off-peak-windows.json` for the per-timezone windows.
+7. **Use the Batch API for non-urgent bulk.** Both Anthropic and
+   OpenAI offer batch endpoints with separate capacity tiers and
+   lower per-token cost. Won't compete with live requests.
+
+### Minimum retry pattern (Python)
+
+```python
+import random
+import time
+
+OVERLOAD_CODES = {429, 503, 529}
+
+def call_with_retry(fn, *, max_attempts=5, base=1.0, cap=30.0):
+    """Retry ``fn`` on capacity / rate-limit responses.
+
+    ``fn`` raises an exception with ``.status_code`` (int) and a
+    ``.response.headers`` mapping. Most provider SDKs use this
+    shape (APIStatusError, RateLimitError, etc.).
+    """
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except Exception as e:
+            code = getattr(e, "status_code", None)
+            if code not in OVERLOAD_CODES or attempt == max_attempts - 1:
+                raise
+            retry_after_hdr = getattr(
+                getattr(e, "response", None), "headers", {}
+            ).get("Retry-After")
+            if retry_after_hdr:
+                try:
+                    delay = float(retry_after_hdr)
+                except ValueError:
+                    delay = min(cap, base * 2 ** attempt)
+            else:
+                delay = min(cap, base * 2 ** attempt)
+            delay += random.uniform(0, delay * 0.25)
+            time.sleep(delay)
+```
+
+A more polished version with provider-agnostic dispatch ships at
+`scripts/api-retry.py` in the content dir (lands at
+`~/.claude/scripts/api-retry.py` after `init`). Vendor it into a
+project's `scripts/` when teammates need the same logic.
+
+### Detecting peak hours
+
+Anthropic doesn't publish exact load curves, but the safe
+assumption (US-heavy customer base, dev/business-hours dominant)
+is **Mon-Fri 09:00-18:00 PT**, heaviest **10:00-14:00 PT**.
+OpenAI's curve is similar but slightly broader (more enterprise
+batch on top).
+
+`/capacity-check` (slash command) reads `data/off-peak-windows.json`
+and tells you whether you're currently in a peak or off-peak
+window for each provider, in your local timezone.
+
+### When not to retry
+
+- **400 / 401 / 403 / 404**: client errors. Retrying won't help.
+- **422 (unprocessable)**: prompt or schema issue. Retrying won't
+  help.
+- **5xx other than 503**: usually unrecoverable in the short term;
+  surface to the user.
+
+### When to fail loud
+
+If a request retries to the cap and still fails, surface the error
+to the caller with **all** the retry attempts logged. Silently
+swallowing a final failure makes debugging much harder downstream.

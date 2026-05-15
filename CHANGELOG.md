@@ -6,6 +6,53 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-14
+
+### Added: `model-overload-resilience` decision pack (auto-applied)
+
+Universal playbook for handling AI-model provider overload across
+Anthropic (529), OpenAI / Codex / Azure (503), Google / Cohere /
+Mistral (429 + 503), and local backends (Ollama, vLLM). Multi-
+provider from day one; no Claude-specific assumptions.
+
+Pack ships:
+
+- `CLAUDE.md.model-overload-resilience.fragment`: the 7-point
+  playbook (retry with backoff + jitter, respect `Retry-After`,
+  cap concurrency, fallback model, prompt caching, off-peak
+  scheduling, Batch API), the 529-vs-429 distinction, a
+  per-provider status-code table, when-not-to-retry guidance, and
+  an inline minimum Python pattern.
+- `commands/capacity-check.md`: `/capacity-check` slash command
+  that detects the user's IANA timezone (via `/etc/localtime` or
+  `$TZ`), reads `data/off-peak-windows.json`, and prints a per-
+  provider peak/off-peak verdict for the user's local time. Hot-day
+  flags (post-model-launch, US-quarter-end, active incidents)
+  override the clock to AMBER/RED. Informational only; never
+  reschedules cron / changes registry without user confirmation.
+- `data/off-peak-windows.json`: structured data with off-peak
+  windows for 7 providers across 17 IANA timezones. JSON so cron
+  jobs, CI, and dashboards can consume programmatically without
+  parsing Markdown. Includes shift-modifiers (US holiday weeks,
+  quarter-end, post-launch heat).
+- `scripts/api-retry.py`: stdlib-only Python retry helper.
+  Provider-agnostic dispatch via `PROVIDER_RETRY_CODES` dict
+  (anthropic = {429, 529}; openai/codex/azure = {429, 503};
+  google/cohere/mistral = {429, 503}; local = {503}; generic =
+  all of them). Extracts status via the SDK shape used by
+  anthropic, openai, httpx, requests. Honours `Retry-After` in
+  either delta-seconds or RFC 7231 HTTP-date form via stdlib
+  `email.utils.parsedate_to_datetime`. Includes `OverloadError`
+  with per-attempt history for clear failure surfacing. `__main__`
+  block self-tests a 529-then-success retry path (subprocess-
+  invoked in the test suite).
+
+Tests: 17 new (parametrized pack-listed + 7 focused). 220 -> 229
+pass; ruff + mypy clean.
+
+`DEFAULT_DECISIONS_ON_INIT` grows from 12 to 13. `decisions list`
+now shows 14 (1 opt-in + 13 auto).
+
 ## [0.4.0] - 2026-05-14
 
 ### Added: render-env.sh post-write mode verification
@@ -426,6 +473,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   a secret pattern.
 - `view` refuses path-traversal (`../`).
 
+[0.4.1]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.1
 [0.4.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.0
 [0.3.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.3.0
 [0.2.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.2.0
