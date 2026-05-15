@@ -14,7 +14,7 @@ This page covers the one-time tap setup and the per-release bump.
 
 | Situation | Best channel |
 |---|---|
-| Fresh-machine bootstrap, any OS | `pip install ai-configurator` |
+| Fresh-machine bootstrap, any OS | `pip install aicfg` |
 | User already has Homebrew + pinned Python | `brew install simtabi/tap/ai-configurator` |
 | `pipx` / `uv tool` user | the matching tool's install verb |
 | CI image build | `pip install` directly in the image |

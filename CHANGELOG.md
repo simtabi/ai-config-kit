@@ -185,7 +185,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   `claude_configurator` → `ai_configurator`. CLI command
   `claude-configurator` → `ai-configurator`. Wheel + sdist name
   `claude-configurator` → `ai-configurator`. PyPI page will live at
-  `pypi.org/project/ai-configurator/` on next release.
+  `pypi.org/project/aicfg/` on next release.
 - Reason: the configurator now ships rules for any AI coding agent,
   not just Claude. `claude-best-practices` is one pack; future
   vendors (Codex, Cursor, Cline, Windsurf, Aider) get their own.

@@ -20,13 +20,13 @@ Pick the option that matches how you usually install Python tools.
 
 ```bash
 # Standard pip
-pip install ai-configurator
+pip install aicfg
 
 # Isolated (recommended for tools)
-pipx install ai-configurator
+pipx install aicfg
 
 # uv
-uv tool install ai-configurator
+uv tool install aicfg
 ```
 
 ## First-time setup
@@ -47,7 +47,7 @@ Push your content dir to a private git repo from machine A, then on
 machine B:
 
 ```bash
-pip install ai-configurator
+pip install aicfg
 git clone git@github.com:you/my-claude-content.git ~/.config/claude-config/content
 ai-configurator bootstrap
 ```

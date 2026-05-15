@@ -3,7 +3,10 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-configurator"
+# PyPI distribution name. The CLI binary, Python module, and GitHub
+# repo are all still ai-configurator / ai_configurator. The shorter
+# pip-install name was chosen for typing ergonomics.
+name = "aicfg"
 version = "0.4.2"
 description = "Manage ~/.claude and cross-vendor AI agent rules: 7-vendor adapters, decision packs, AGENTS.md composition."
 readme = "README.md"

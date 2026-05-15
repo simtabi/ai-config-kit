@@ -17,8 +17,8 @@ One-time, per-channel setup before the first `vX.Y.Z` tag can publish.
 ## OIDC verification
 
 - [ ] First tag triggers the workflow.
-- [ ] Workflow succeeds, package appears at `https://pypi.org/project/ai-configurator/`.
-- [ ] `pip install ai-configurator` from a clean venv resolves the new version.
+- [ ] Workflow succeeds, package appears at `https://pypi.org/project/aicfg/`.
+- [ ] `pip install aicfg` from a clean venv resolves the new version.
 
 ## Repo metadata
 

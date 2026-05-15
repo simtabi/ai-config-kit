@@ -1,8 +1,8 @@
 # ai-configurator
 
 [![CI](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml/badge.svg)](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/ai-configurator.svg)](https://pypi.org/project/ai-configurator/)
-[![Python](https://img.shields.io/pypi/pyversions/ai-configurator.svg)](https://pypi.org/project/ai-configurator/)
+[![PyPI](https://img.shields.io/pypi/v/aicfg.svg)](https://pypi.org/project/aicfg/)
+[![Python](https://img.shields.io/pypi/pyversions/aicfg.svg)](https://pypi.org/project/aicfg/)
 [![License](https://img.shields.io/github/license/simtabi/ai-configurator.svg)](LICENSE)
 
 Version your `~/.claude/` directory without versioning your caches.
@@ -17,7 +17,7 @@ project repo. Wired adapters: claude-code, aider, cursor, windsurf,
 copilot, codex, cline.
 
 ```bash
-pip install ai-configurator
+pip install aicfg
 ai-configurator bootstrap        # validate + init + install + doctor, one shot
 ```
 
@@ -66,9 +66,9 @@ The classification above is enforced by the install command. See
 ## Install
 
 ```bash
-pip install ai-configurator
-# or:  pipx install ai-configurator
-# or:  uv tool install ai-configurator
+pip install aicfg
+# or:  pipx install aicfg
+# or:  uv tool install aicfg
 ```
 
 Requirements: Python 3.10+, `git` on `PATH` (only for `init` and
@@ -236,7 +236,7 @@ Push the content dir to a private git repo from machine A, then on
 machine B:
 
 ```bash
-pip install ai-configurator
+pip install aicfg
 git clone git@github.com:you/my-claude-content.git ~/.config/claude-config/content
 ai-configurator bootstrap
 ```
