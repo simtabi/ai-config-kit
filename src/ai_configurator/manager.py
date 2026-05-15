@@ -380,6 +380,57 @@ class HealReport:
 
 
 @dataclass(frozen=True)
+class ProviderCapacity:
+    """Per-provider snapshot for the capacity-check verdict.
+
+    ``status`` is one of:
+
+    - ``"green"``: user's local time falls in the off-peak window;
+      proceed.
+    - ``"amber"``: in the peak window; retry-with-backoff +
+      fallback model are advisable.
+    - ``"red"``: peak window AND a hot-day flag fired
+      (post-model-launch / US-quarter-end). Defer non-urgent work.
+    - ``"unknown"``: provider not in the data file, or the user's
+      timezone isn't covered.
+
+    ``off_peak_window_local`` is a human-readable string verbatim
+    from the JSON data file (e.g., ``"22:00-06:00 weekdays; all
+    weekend"``). It's not parsed into structured ranges because the
+    real data carries seasonal qualifiers (winter/summer DST
+    fallbacks) that don't round-trip cleanly through a tighter type.
+    """
+
+    provider: str
+    status: str  # green | amber | red | unknown
+    off_peak_window_local: str
+    reason: str  # one-line explanation surfaced to the user
+
+
+@dataclass(frozen=True)
+class CapacityVerdict:
+    """Outcome of ``capacity_check`` for one or more providers.
+
+    ``user_timezone`` is the resolved IANA zone the verdict was
+    computed against. ``providers`` is keyed by provider slug
+    (anthropic, openai, etc.).
+    """
+
+    user_timezone: str
+    providers: dict[str, ProviderCapacity] = field(default_factory=dict)
+    data_source: str = ""  # path the JSON was loaded from
+    data_updated: str = ""  # ISO date from the JSON's data_updated field
+
+    def summary(self) -> str:
+        if not self.providers:
+            return f"no provider data ({self.user_timezone})"
+        rows = []
+        for name, cap in self.providers.items():
+            rows.append(f"{name}: {cap.status.upper()} ({cap.reason})")
+        return f"capacity in {self.user_timezone} -- " + "; ".join(rows)
+
+
+@dataclass(frozen=True)
 class DecisionFile:
     """A single file inside a bundled decision pack."""
 
@@ -2180,6 +2231,219 @@ class ClaudeConfig:
             return False
         head = first.split(b"\n", 1)[0]
         return b"sh" in head or b"bash" in head or b"zsh" in head
+
+    # ---- capacity_check (model-overload-resilience helper) ----------
+
+    OFF_PEAK_DATA_REL: ClassVar[str] = "data/off-peak-windows.json"
+
+    def capacity_check(
+        self,
+        timezone: str | None = None,
+        providers: Iterable[str] | None = None,
+    ) -> CapacityVerdict:
+        """Compute the per-provider capacity verdict for the user's timezone.
+
+        Programmatic counterpart of the ``/capacity-check`` slash
+        command. Reads ``data/off-peak-windows.json`` from the content
+        dir if present (so users can override), and falls back to the
+        copy bundled with the ``model-overload-resilience`` decision
+        pack.
+
+        Args:
+            timezone: IANA zone (e.g., ``"America/New_York"``). When
+                None, detects from the system: ``$TZ`` env var first,
+                then ``readlink /etc/localtime``. Defaults to
+                ``"UTC"`` if neither resolves.
+            providers: subset to report. None means every provider in
+                the data file. Unknown providers land with status
+                ``"unknown"`` so callers know to check spelling.
+
+        Returns a :class:`CapacityVerdict`. Status logic per provider:
+
+        - ``green``: now is in the off-peak window for the user's zone.
+        - ``amber``: now is in the peak window (no hot-day flag).
+        - ``red``: peak AND a hot-day flag fired (currently a stub;
+          incident + post-launch detection is out of scope for the
+          synchronous, network-free Python API).
+        - ``unknown``: zone not in the provider's table, or provider
+          not in the data file.
+        """
+        from datetime import datetime
+        from datetime import timezone as _tz
+
+        tz_str = timezone or self._detect_user_timezone()
+        data_path, data = self._load_off_peak_data()
+
+        wanted = (
+            tuple(providers)
+            if providers is not None
+            else tuple(data.get("providers", {}).keys())
+        )
+
+        # We work in UTC and then ask the IANA zone what its current
+        # local hour is. Python 3.9+ has zoneinfo in stdlib.
+        try:
+            from zoneinfo import ZoneInfo
+            zone = ZoneInfo(tz_str)
+            now_local = datetime.now(_tz.utc).astimezone(zone)
+            local_hour = now_local.hour
+            local_weekday = now_local.weekday()  # 0 = Monday
+        except Exception:
+            # zoneinfo or zone resolution failed: fall through with
+            # an "unknown" verdict per provider rather than crashing.
+            local_hour = -1
+            local_weekday = -1
+
+        provider_table = data.get("providers", {})
+        out: dict[str, ProviderCapacity] = {}
+        for name in wanted:
+            p = provider_table.get(name)
+            if p is None:
+                out[name] = ProviderCapacity(
+                    provider=name,
+                    status="unknown",
+                    off_peak_window_local="",
+                    reason=f"provider {name!r} not in data file",
+                )
+                continue
+            windows = p.get("off_peak_windows", {}) or {}
+            # Some entries are strings ("see openai"); only dict values
+            # carry per-tz tables.
+            if not isinstance(windows, dict):
+                out[name] = ProviderCapacity(
+                    provider=name,
+                    status="unknown",
+                    off_peak_window_local="",
+                    reason=f"{name} inherits from another provider; check data file",
+                )
+                continue
+            window_str = windows.get(tz_str)
+            if window_str is None:
+                out[name] = ProviderCapacity(
+                    provider=name,
+                    status="unknown",
+                    off_peak_window_local="",
+                    reason=f"no entry for {tz_str}; check {self.OFF_PEAK_DATA_REL}",
+                )
+                continue
+            if local_hour < 0:
+                out[name] = ProviderCapacity(
+                    provider=name,
+                    status="unknown",
+                    off_peak_window_local=window_str,
+                    reason=f"could not resolve local time for {tz_str}",
+                )
+                continue
+
+            in_off = self._in_off_peak_window(
+                window_str, hour=local_hour, weekday=local_weekday
+            )
+            status = "green" if in_off else "amber"
+            reason = (
+                f"off-peak window: {window_str}; local hour {local_hour:02d}"
+                if in_off
+                else f"in peak; off-peak opens at {window_str}; local hour {local_hour:02d}"
+            )
+            out[name] = ProviderCapacity(
+                provider=name,
+                status=status,
+                off_peak_window_local=window_str,
+                reason=reason,
+            )
+
+        return CapacityVerdict(
+            user_timezone=tz_str,
+            providers=out,
+            data_source=str(data_path) if data_path else "(package resources)",
+            data_updated=str(data.get("data_updated", "")),
+        )
+
+    @staticmethod
+    def _detect_user_timezone() -> str:
+        """Resolve the user's IANA zone from environment + /etc/localtime."""
+        tz_env = os.environ.get("TZ")
+        if tz_env:
+            return tz_env
+        localtime = Path("/etc/localtime")
+        if localtime.is_symlink():
+            target = os.readlink(localtime)
+            # Typical: ``../usr/share/zoneinfo/America/New_York``
+            marker = "zoneinfo/"
+            if marker in target:
+                return target.split(marker, 1)[1]
+        return "UTC"
+
+    def _load_off_peak_data(
+        self,
+    ) -> tuple[Path | None, dict[str, Any]]:
+        """Load the off-peak data JSON.
+
+        Search order:
+        1. ``src_dir/data/off-peak-windows.json`` (user-editable copy
+           dropped by the decision pack at init time).
+        2. The packaged copy under
+           ``ai_configurator/resources/decisions/model-overload-resilience/files/data/``.
+
+        Returns ``(path, data_dict)``. ``path`` is None when loaded
+        from package resources.
+        """
+        user_copy = self.src_dir / self.OFF_PEAK_DATA_REL
+        if user_copy.is_file():
+            return user_copy, json.loads(
+                user_copy.read_text(encoding="utf-8")
+            )
+        # Packaged fallback
+        pkg_root = (
+            resources.files("ai_configurator")
+            / "resources"
+            / "decisions"
+            / "model-overload-resilience"
+            / "files"
+            / "data"
+            / "off-peak-windows.json"
+        )
+        try:
+            text = pkg_root.read_text(encoding="utf-8")
+        except (FileNotFoundError, OSError) as e:
+            raise ConfigError(
+                "off-peak-windows.json not found in content dir or package resources"
+            ) from e
+        return None, json.loads(text)
+
+    @staticmethod
+    def _in_off_peak_window(window: str, *, hour: int, weekday: int) -> bool:
+        """Parse a window string and answer "is hour:weekday in it?".
+
+        The JSON window strings are heuristic prose, e.g.:
+
+        - ``"22:00-06:00 weekdays; all weekend"``
+        - ``"06:00-14:00 (winter) / 07:00-15:00 (summer)"``
+        - ``"21:00-05:00 weekdays; all weekend"``
+
+        Behaviour:
+
+        - Weekends (weekday >= 5) match when "weekend" appears.
+        - On weekdays, the first ``HH:MM-HH:MM`` range is the
+          authoritative window. If the start > end it wraps midnight.
+        - Seasonal qualifiers (``(winter)``/``(summer)``) are ignored
+          here; users wanting DST-precise behaviour should patch the
+          window string for their machine.
+        """
+        if weekday >= 5 and "weekend" in window.lower():
+            return True
+
+        # Find the first HH:MM-HH:MM range.
+        import re
+        match = re.search(r"(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})", window)
+        if not match:
+            return False
+        h_start = int(match.group(1))
+        h_end = int(match.group(3))
+
+        if h_start <= h_end:
+            return h_start <= hour < h_end
+        # Wraps midnight (e.g., 22-06)
+        return hour >= h_start or hour < h_end
 
     # ---- doctor -------------------------------------------------------
 

@@ -253,6 +253,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show findings without mutating. Default when --yes is absent.",
     )
 
+    # capacity (read off-peak data and report per-provider verdict)
+    p_capacity = sub.add_parser(
+        "capacity",
+        help="Per-provider capacity verdict for now in the user's timezone.",
+    )
+    p_capacity.add_argument(
+        "--timezone",
+        default=None,
+        help="IANA zone (e.g., America/New_York). Detected from $TZ or /etc/localtime if omitted.",
+    )
+    p_capacity.add_argument(
+        "--provider",
+        action="append",
+        dest="providers",
+        metavar="NAME",
+        help="Provider to query; pass multiple times for several. Defaults to all in the data file.",
+    )
+
     # cleanup
     p_clean = sub.add_parser(
         "cleanup",
@@ -532,6 +550,23 @@ def main(argv: list[str] | None = None) -> int:
             for finding in heal_report.findings:
                 _print_finding(finding)
             return 1 if heal_report.findings and heal_report.dry_run else 0
+
+        if args.cmd == "capacity":
+            verdict = cfg.capacity_check(
+                timezone=args.timezone,
+                providers=args.providers,
+            )
+            print(f"timezone: {verdict.user_timezone}")
+            print(f"data: {verdict.data_source} (updated {verdict.data_updated})")
+            for name, cap in verdict.providers.items():
+                print(f"  [{cap.status.upper():>7}] {name}: {cap.reason}")
+            # Nonzero only when every provider is red (a deferral signal
+            # CI can act on). Green/amber are informational.
+            if verdict.providers and all(
+                c.status == "red" for c in verdict.providers.values()
+            ):
+                return 1
+            return 0
 
         if args.cmd == "validate":
             val_report = cfg.validate()

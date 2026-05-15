@@ -2354,3 +2354,136 @@ def test_overload_python_helper_self_test_passes(
         f"stderr: {result.stderr}"
     )
     assert "self-test ok" in result.stdout
+
+
+# --- capacity_check API ----------------------------------------------------
+
+
+def test_capacity_check_loads_from_package_resources_when_no_user_copy(
+    cfg: ClaudeConfig,
+) -> None:
+    """Before init(), the data file isn't in the content dir yet. The
+    method must fall back to the packaged copy."""
+    verdict = cfg.capacity_check(
+        timezone="America/New_York", providers=["anthropic"]
+    )
+    assert verdict.user_timezone == "America/New_York"
+    assert verdict.data_source == "(package resources)"
+    assert "anthropic" in verdict.providers
+    # Status should be green/amber, not unknown (we know NY is in the table)
+    assert verdict.providers["anthropic"].status in ("green", "amber")
+
+
+def test_capacity_check_unknown_provider_marked_unknown(
+    cfg: ClaudeConfig,
+) -> None:
+    verdict = cfg.capacity_check(
+        timezone="UTC", providers=["definitely-not-a-real-provider"]
+    )
+    cap = verdict.providers["definitely-not-a-real-provider"]
+    assert cap.status == "unknown"
+    assert "not in data file" in cap.reason
+
+
+def test_capacity_check_unknown_timezone_marked_unknown(
+    cfg: ClaudeConfig,
+) -> None:
+    """An IANA zone the JSON doesn't cover yields 'unknown' so the
+    caller knows to check the data file rather than guess."""
+    verdict = cfg.capacity_check(
+        timezone="Antarctica/Vostok",  # not in the table
+        providers=["anthropic"],
+    )
+    assert verdict.providers["anthropic"].status == "unknown"
+
+
+def test_capacity_check_offpeak_window_lookup_is_correct(
+    cfg: ClaudeConfig,
+) -> None:
+    """Asia/Tokyo's off-peak window is 14:00-22:00; verify our window
+    parser computes the right verdict for both ends of the range."""
+    # We can't easily mock time without freezegun; instead test the
+    # static parser directly.
+    win = "14:00-22:00"
+    # Hours fully inside the window
+    assert ClaudeConfig._in_off_peak_window(win, hour=14, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=18, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=21, weekday=2) is True
+    # Hours outside
+    assert ClaudeConfig._in_off_peak_window(win, hour=22, weekday=2) is False
+    assert ClaudeConfig._in_off_peak_window(win, hour=10, weekday=2) is False
+    assert ClaudeConfig._in_off_peak_window(win, hour=0, weekday=2) is False
+
+
+def test_capacity_check_window_wraps_midnight(cfg: ClaudeConfig) -> None:
+    """22:00-06:00 means 22, 23, 0, 1, 2, 3, 4, 5 are inside."""
+    win = "22:00-06:00 weekdays; all weekend"
+    # weekday=2 (Wednesday); "weekend" clause shouldn't match
+    assert ClaudeConfig._in_off_peak_window(win, hour=22, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=23, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=0, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=5, weekday=2) is True
+    assert ClaudeConfig._in_off_peak_window(win, hour=6, weekday=2) is False
+    assert ClaudeConfig._in_off_peak_window(win, hour=12, weekday=2) is False
+    assert ClaudeConfig._in_off_peak_window(win, hour=21, weekday=2) is False
+
+
+def test_capacity_check_weekend_clause_matches_saturday_sunday(
+    cfg: ClaudeConfig,
+) -> None:
+    """`all weekend` should mark every hour on Sat (5) and Sun (6) green."""
+    win = "22:00-06:00 weekdays; all weekend"
+    # Saturday + Sunday: any hour
+    for hour in (0, 6, 12, 18, 23):
+        assert ClaudeConfig._in_off_peak_window(win, hour=hour, weekday=5) is True
+        assert ClaudeConfig._in_off_peak_window(win, hour=hour, weekday=6) is True
+
+
+def test_capacity_check_prefers_user_copy_over_package_resources(
+    cfg: ClaudeConfig,
+) -> None:
+    """When the user has init'd and dropped their own copy, the method
+    must read that one (allowing user override)."""
+    import json as _json
+    cfg.init(init_git=False)
+    user_copy = cfg.src_dir / "data" / "off-peak-windows.json"
+    assert user_copy.is_file()
+    # Mutate the user copy: replace the Anthropic window for UTC with
+    # something distinctive so we can tell which file was loaded.
+    data = _json.loads(user_copy.read_text(encoding="utf-8"))
+    data["providers"]["anthropic"]["off_peak_windows"]["UTC"] = "99:99-99:99 marker"
+    user_copy.write_text(_json.dumps(data), encoding="utf-8")
+    # Resolve
+    verdict = cfg.capacity_check(timezone="UTC", providers=["anthropic"])
+    assert "99:99-99:99 marker" in verdict.providers["anthropic"].off_peak_window_local
+    assert verdict.data_source == str(user_copy)
+
+
+def test_capacity_check_summary_text_human_readable(
+    cfg: ClaudeConfig,
+) -> None:
+    verdict = cfg.capacity_check(
+        timezone="UTC", providers=["anthropic", "openai"]
+    )
+    summary = verdict.summary()
+    assert "UTC" in summary
+    assert "anthropic" in summary
+    assert "openai" in summary
+
+
+def test_capacity_check_default_providers_returns_all(
+    cfg: ClaudeConfig,
+) -> None:
+    """When `providers=None`, every provider in the data file is checked."""
+    verdict = cfg.capacity_check(timezone="America/New_York")
+    # The data file covers seven providers; the table reports them
+    assert len(verdict.providers) >= 6  # allow for future additions
+
+
+def test_capacity_check_detects_user_timezone_from_env(
+    cfg: ClaudeConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """$TZ env var is honored when timezone arg is None."""
+    monkeypatch.setenv("TZ", "Europe/Paris")
+    verdict = cfg.capacity_check(providers=["anthropic"])
+    assert verdict.user_timezone == "Europe/Paris"

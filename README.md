@@ -167,6 +167,7 @@ per-project files are never overwritten without `--force`.
 | [`status`](docs/tools/ai-configurator.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |
 | [`doctor`](docs/tools/ai-configurator.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. `--heal` also runs the permission audit. |
 | [`heal`](docs/tools/ai-configurator.md#heal-audit--fix-permissions-on-the-content-dir) | Audit + (with `--yes`) fix mode bits on the content dir. Never escalates privilege; orphan-owner findings are flagged but never fixed. |
+| [`capacity`](docs/tools/ai-configurator.md#capacity-per-provider-overload-verdict-for-now-in-the-users-timezone) | Per-provider overload verdict (Anthropic, OpenAI, Codex, Google, Cohere, Mistral, local) computed against the user's local timezone using the bundled off-peak data. |
 | [`validate`](docs/tools/ai-configurator.md#validate--pre-flight-check) | Pre-flight environment check (Python, git, writability). |
 | [`list`](docs/tools/ai-configurator.md#list--grouped-view-of-content) | Grouped tree of content with size + count per group. |
 | [`view`](docs/tools/ai-configurator.md#view--print-a-tracked-file) | Print a tracked file's contents (path-traversal-safe). |

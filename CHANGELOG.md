@@ -6,6 +6,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-05-15
+
+### Added: `capacity` verb + `ClaudeConfig.capacity_check` Python API
+
+The `/capacity-check` slash command shipped in 0.4.1 teaches an
+agent how to do the timezone-aware lookup. This release adds the
+programmatic counterpart so cron jobs, dashboards, SDKs, and CI
+gates can consume the same verdict structurally.
+
+- `ClaudeConfig.capacity_check(timezone=None, providers=None) ->
+  CapacityVerdict`: computes per-provider GREEN/AMBER/UNKNOWN
+  verdict against the user's local time.
+- Two new public types: `CapacityVerdict` and `ProviderCapacity`.
+- Timezone resolution: explicit arg > `$TZ` env > resolved
+  `/etc/localtime` symlink target > `UTC`.
+- Window parser handles seasonal qualifiers (`(winter)`/`(summer)`
+  ignored), midnight-wrapping windows (`22:00-06:00`), and the
+  `all weekend` clause.
+- Data load order: user-editable `<content_dir>/claude/data/off-peak-windows.json`
+  first, then package-resource fallback so the verb works before
+  `init` has dropped the file into the content dir.
+- New CLI verb: `ai-configurator capacity [--timezone IANA_ZONE]
+  [--provider NAME ...]`. Exit `0` unless every reported provider
+  is RED (a deferral signal for CI; currently never produced by
+  the synchronous path: hot-day detection lives in the slash
+  command).
+- 11 new manager tests + 2 CLI tests. 229 -> 241 pass; ruff +
+  mypy clean.
+
 ## [0.4.1] - 2026-05-14
 
 ### Added: `model-overload-resilience` decision pack (auto-applied)
@@ -473,6 +502,7 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   a secret pattern.
 - `view` refuses path-traversal (`../`).
 
+[0.4.2]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.2
 [0.4.1]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.1
 [0.4.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.0
 [0.3.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.3.0

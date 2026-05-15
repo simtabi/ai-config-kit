@@ -189,6 +189,43 @@ Orphan-owner findings always land in `skipped` even with `--yes`,
 because the tool does not invoke `sudo`. The reported `detail`
 includes the owning uid so you can decide how to handle it.
 
+### `capacity`: per-provider overload verdict for now in the user's timezone
+
+```bash
+ai-configurator capacity [--timezone IANA_ZONE] [--provider NAME ...]
+```
+
+Programmatic counterpart of the `/capacity-check` slash command
+shipped by the `model-overload-resilience` decision pack. Computes
+whether each AI-model provider is in a peak or off-peak window for
+the user's local time, based on the bundled `data/off-peak-windows.json`.
+
+When `--timezone` is omitted, the zone is resolved in this order:
+
+1. `$TZ` env var (verbatim).
+2. `readlink /etc/localtime` (the IANA path embedded in the
+   symlink target on macOS / Linux / WSL).
+3. `UTC` as the final fallback.
+
+When `--provider` is omitted, every provider in the data file is
+checked (anthropic, openai, codex, google, cohere, mistral, local).
+
+Per-provider status:
+
+| Status | Meaning |
+|---|---|
+| GREEN | Current local time is in the off-peak window. |
+| AMBER | Current local time is in the peak window; retry-with-backoff + fallback model recommended. |
+| RED | (Reserved for hot-day flags; currently never produced by this synchronous, network-free path. Use `/capacity-check` slash command for the agentic version that checks status pages + recent launches.) |
+| UNKNOWN | The provider isn't in the data file, or the user's timezone isn't covered. |
+
+Data load order: `<content_dir>/claude/data/off-peak-windows.json`
+(user-editable) first, then the package-resource fallback so the
+verb works on a fresh install before `init`.
+
+Exit code: `0` unless every reported provider is RED (a deferral
+signal for CI). GREEN/AMBER/UNKNOWN all exit `0`.
+
 ### `validate`: pre-flight check
 
 ```bash

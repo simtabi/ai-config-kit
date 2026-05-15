@@ -24,6 +24,7 @@ from importlib import metadata as _md
 from .manager import (
     BootstrapReport,
     BootstrapStep,
+    CapacityVerdict,
     ClaudeConfig,
     CleanupReport,
     ComposeReport,
@@ -42,6 +43,7 @@ from .manager import (
     ProjectFile,
     ProjectInstallReport,
     Prompter,
+    ProviderCapacity,
     ReconcileReport,
     RepairAction,
     RepairReport,
@@ -61,6 +63,7 @@ except _md.PackageNotFoundError:
 __all__ = [
     "BootstrapReport",
     "BootstrapStep",
+    "CapacityVerdict",
     "ClaudeConfig",
     "CleanupReport",
     "ComposeReport",
@@ -79,6 +82,7 @@ __all__ = [
     "ProjectFile",
     "ProjectInstallReport",
     "Prompter",
+    "ProviderCapacity",
     "ReconcileReport",
     "RepairAction",
     "RepairReport",

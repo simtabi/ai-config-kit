@@ -584,3 +584,53 @@ def test_doctor_heal_shortcut_runs_audit(
     # heal's findings present in output (doctor + audit_permissions both ran)
     assert "sensitive-mode-too-open" in out
     assert rc == 0  # doctor itself happy; heal findings don't fail doctor
+
+
+# --- capacity verb ---------------------------------------------------------
+
+
+def test_capacity_via_cli_uses_package_data_fallback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """capacity verb works even without init having dropped the JSON
+    into the content dir (loads from package resources)."""
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    (content / "claude").mkdir(parents=True)
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "capacity",
+            "--timezone", "Europe/London",
+            "--provider", "anthropic",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "timezone: Europe/London" in out
+    assert "anthropic" in out
+    # Either GREEN or AMBER depending on current time
+    assert any(tag in out for tag in ("GREEN", "AMBER", "UNKNOWN"))
+    assert rc == 0  # never all-red without hot-day logic
+
+
+def test_capacity_via_cli_unknown_timezone_reports_unknown(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    target.mkdir()
+    (content / "claude").mkdir(parents=True)
+    rc = main(
+        [
+            "--content", str(content),
+            "--target", str(target),
+            "capacity",
+            "--timezone", "Antarctica/Vostok",
+            "--provider", "anthropic",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "UNKNOWN" in out
+    assert rc == 0  # unknown is informational, not a failure
