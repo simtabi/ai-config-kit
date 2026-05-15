@@ -16,11 +16,11 @@ through four layers, applied in precedence order (highest first):
 | `CLAUDE_CONFIG_CONTENT_DIR` | Override the content directory. |
 | `CLAUDE_CONFIG_TARGET` | Override the target directory (default `~/.claude`). |
 | `CLAUDE_CONFIG_HOSTNAME` | Override the hostname for host-overlay matching (mostly useful in tests). |
-| `XDG_CONFIG_HOME` | Affects the JSON config file default path (`$XDG_CONFIG_HOME/ai-configurator/config.json`). |
+| `XDG_CONFIG_HOME` | Affects the JSON config file default path (`$XDG_CONFIG_HOME/ai-config-kit/config.json`). |
 
 ## JSON config file
 
-Default path: `${XDG_CONFIG_HOME:-~/.config}/ai-configurator/config.json`.
+Default path: `${XDG_CONFIG_HOME:-~/.config}/ai-config-kit/config.json`.
 
 ```json
 {
@@ -37,7 +37,7 @@ Default path: `${XDG_CONFIG_HOME:-~/.config}/ai-configurator/config.json`.
 
 | Field | Default | Purpose |
 |---|---|---|
-| `content_dir` | `${XDG_CONFIG_HOME:-~/.config}/ai-configurator/content` | Canonical file home |
+| `content_dir` | `${XDG_CONFIG_HOME:-~/.config}/ai-config-kit/content` | Canonical file home |
 | `target_base` | `~/.claude` | Where Claude Code reads from |
 | `secret_patterns` | credentials, keys, tokens, env, SSH keys, .netrc, .npmrc, .pypirc, .kdbx | Refuses to track / symlink matching |
 | `ignore_patterns` | `.DS_Store`, swap files, `*~`, `Thumbs.db` | Excluded from install / status / doctor |
@@ -103,8 +103,8 @@ ClaudeConfig().with_sessions(True).with_history(True).install()
 Or directly via `track` (auto-sets the flag):
 
 ```bash
-ai-configurator track ~/.claude/sessions
-ai-configurator track ~/.claude/history.jsonl
+ai-config-kit track ~/.claude/sessions
+ai-config-kit track ~/.claude/history.jsonl
 ```
 
 Trade-offs covered in [architecture.md](architecture.md).

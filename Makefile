@@ -21,7 +21,7 @@ format-check:  ## Verify ruff is clean (CI-style)
 	$(PY) -m ruff check src tests
 
 type-check:  ## Run mypy
-	$(PY) -m mypy src/ai_configurator
+	$(PY) -m mypy src/ai_config_kit
 
 check: lint type-check test  ## Run all quality gates
 

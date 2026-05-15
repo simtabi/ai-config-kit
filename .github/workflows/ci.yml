@@ -33,7 +33,7 @@ jobs:
         run: ruff check src tests
 
       - name: Type-check
-        run: mypy src/ai_configurator
+        run: mypy src/ai_config_kit
 
       - name: Test
         run: pytest -q

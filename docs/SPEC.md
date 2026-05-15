@@ -1,4 +1,4 @@
-# `ai-configurator`: design specification + agent prompt
+# `ai-config-kit`: design specification + agent prompt
 
 > This file is **both** the design spec AND the standing prompt that
 > coding agents load when they continue this project. Mirrors the
@@ -64,9 +64,9 @@ Before writing code, run a status sweep and report the findings inline.
 
 1. **`pytest -q`**: must be green.
 2. **`ruff check src tests`**: must be clean.
-3. **`mypy --strict src/ai_configurator`**: must be clean.
-4. **CLI surface check**: `python -m ai_configurator --help`
-   should list every subcommand in `docs/tools/ai-configurator.md`.
+3. **`mypy --strict src/ai_config_kit`**: must be clean.
+4. **CLI surface check**: `python -m ai_config_kit --help`
+   should list every subcommand in `docs/tools/ai-config-kit.md`.
 5. **README authority check**: exactly ONE `README.md` at the repo
    root, ONE under `docs/` is allowed if it's an index, per-pack
    `details.md` (not `README.md`) under `resources/decisions/<pack>/`.
@@ -86,7 +86,7 @@ Before writing code, run a status sweep and report the findings inline.
    `DEFAULT_DECISIONS_ON_INIT` must have a corresponding directory
    under `resources/decisions/` with a `manifest.json` and at least
    one file. `decisions list` must show the same count.
-10. **AI-tell prose check**: `grep -rniE 'leverage|seamless|essentially|note that|simply,|comprehensive|robust\b|delve into' docs/ README.md CHANGELOG.md src/ai_configurator/resources/decisions/` returns only banned-list mentions, not actual prose. Em-dash sandwich (` — `) also zero in prose (table-cell em-dashes and the audit-prose grep pattern are intentional exceptions).
+10. **AI-tell prose check**: `grep -rniE 'leverage|seamless|essentially|note that|simply,|comprehensive|robust\b|delve into' docs/ README.md CHANGELOG.md src/ai_config_kit/resources/decisions/` returns only banned-list mentions, not actual prose. Em-dash sandwich (` — `) also zero in prose (table-cell em-dashes and the audit-prose grep pattern are intentional exceptions).
 
 Five-line summary at the top of your first response, then proceed
 with the user's request.
@@ -97,11 +97,11 @@ with the user's request.
 
 | Field | Value |
 |---|---|
-| Project | `ai-configurator` |
-| Python module | `ai_configurator` |
-| CLI command | `ai-configurator` |
+| Project | `ai-config-kit` |
+| Python module | `ai_config_kit` |
+| CLI command | `ai-config-kit` |
 | Distribution channel | `get.simtabi.com` (via sibling `get-installer`) |
-| Repo | `https://github.com/simtabi/ai-configurator` |
+| Repo | `https://github.com/simtabi/ai-config-kit` |
 | License | MIT, `Copyright (c) 2026 Simtabi LLC` |
 | Min Python | 3.10 |
 | Runtime deps | **none** (stdlib only) |
@@ -121,12 +121,12 @@ Two-layer design:
    provides `fetch` / `repair` / `decisions` / etc.
 2. **The user's content directory**: at `~/.config/claude-config/`
    (kept under that path for backwards compat after the rename from
-   `claude-config` → `ai-configurator`). Contains the user's
+   `claude-config` → `ai-config-kit`). Contains the user's
    actual `CLAUDE.md`, `settings.json`, `commands/`, `agents/`, etc.
 
 ## 2: Current state (v0.3.0-dev)
 
-Renamed from `claude-configurator` to `ai-configurator` to reflect the
+Renamed from `claude-configurator` to `ai-config-kit` to reflect the
 broader scope: target any AI coding tool, not just Claude Code.
 
 What's **done**:
@@ -138,7 +138,7 @@ What's **done**:
    `compose-agents-md`, `project-install`,
    `decisions {list,show,apply}`.
 2. **13 bundled decision packs** at
-   `src/ai_configurator/resources/decisions/<name>/`. **12
+   `src/ai_config_kit/resources/decisions/<name>/`. **12
    auto-applied on `init`**, 1 opt-in (`core`):
    - `script-generation-pattern`: generator-script-first for many-file work
    - `fetch-canonical-pattern`: disk-to-disk canonical-file downloads
@@ -166,7 +166,7 @@ What's **done**:
    the installed package version against `last_applied_version` in the
    JSON config and re-applies missing auto-apply packs. The CLI runs
    this on every command; users who `pip install --upgrade
-   ai-configurator` pick up new packs automatically.
+   ai-config-kit` pick up new packs automatically.
 5. `fetch` command: disk-to-disk URL → file with SHA256 + atomic
    write. Stdlib only.
 6. **157 tests passing**, ruff + mypy --strict clean.
@@ -174,7 +174,7 @@ What's **done**:
 8. CI workflows + Dependabot.
 9. Doc tree under `docs/` (installation, configuration,
    architecture, release, shipping-checklist, decisions, SPEC,
-   tools/ai-configurator.md).
+   tools/ai-config-kit.md).
 
 Known issues / gaps live in §5.
 
@@ -183,16 +183,16 @@ Known issues / gaps live in §5.
 The bootstrap entry point is the sibling `get-installer`:
 
 ```bash
-sh -c "$(curl -fsSL https://get.simtabi.com/install.sh)" -- --product ai-configurator
+sh -c "$(curl -fsSL https://get.simtabi.com/install.sh)" -- --product ai-config-kit
 ```
 
 Once installed:
 
 ```bash
-ai-configurator bootstrap         # validate + init + install + doctor
-ai-configurator status            # what's tracked
-ai-configurator list              # grouped content view
-ai-configurator sync -m "..."     # commit changes in the content dir
+ai-config-kit bootstrap         # validate + init + install + doctor
+ai-config-kit status            # what's tracked
+ai-config-kit list              # grouped content view
+ai-config-kit sync -m "..."     # commit changes in the content dir
 ```
 
 The user's content dir defaults to `~/.config/claude-config/content/`
@@ -217,30 +217,30 @@ keeping it for back-compat).
 
 ### Phase C: Memory dir hygiene
 
-- [ ] `ai-configurator memory clean --older-than 90d`: remove
+- [ ] `ai-config-kit memory clean --older-than 90d`: remove
       stale per-project memory entries.
-- [ ] `ai-configurator memory dedupe`: find near-duplicate
+- [ ] `ai-config-kit memory dedupe`: find near-duplicate
       memories across projects (basic shingle-hash).
 
 ### Phase D: Settings.json migration helpers
 
-- [ ] `ai-configurator settings migrate`: detects schema-version
+- [ ] `ai-config-kit settings migrate`: detects schema-version
       changes in Claude Code's `settings.json` and migrates the user's
       file (with a backup).
 - [ ] Tracks Claude Code releases via the get-installer's audit beacons.
 
 ### Phase E: Cross-machine sync (beyond git)
 
-- [ ] `ai-configurator sync --target s3://bucket/path`: push the
+- [ ] `ai-config-kit sync --target s3://bucket/path`: push the
       content dir to object storage in addition to git.
-- [ ] `ai-configurator sync --target webdav://...`: for
+- [ ] `ai-config-kit sync --target webdav://...`: for
       Nextcloud / iCloud-like users.
 
 ### Phase F: Selective install (subset of content)
 
-- [ ] `ai-configurator install --only commands,agents`: install
+- [ ] `ai-config-kit install --only commands,agents`: install
       only specific subtrees. Useful for limited test envs.
-- [ ] `ai-configurator install --exclude sessions` (already
+- [ ] `ai-config-kit install --exclude sessions` (already
       handled by `include_sessions=false`, but documented as the
       mainline path).
 
@@ -253,7 +253,7 @@ keeping it for back-compat).
 
 ### Phase H: Multi-vendor ✔ 2026-05-14
 
-`ai-configurator` now targets seven CLI-based AI coding agents:
+`ai-config-kit` now targets seven CLI-based AI coding agents:
 `claude-code`, `aider`, `codex`, `cursor`, `cline`, `windsurf`,
 `copilot`. Each is declared in a `VendorAdapter` registry with its
 own global target (`~/.cursor/rules/`, `~/.codex/instructions/`, etc.)
@@ -286,7 +286,7 @@ Status matrix at v0.3.0:
 
 ### Phase I: Homebrew tap distribution ✔ 2026-05-14
 
-- [x] `templates/homebrew-formula/ai-configurator.rb`: ready-to-ship
+- [x] `templates/homebrew-formula/ai-config-kit.rb`: ready-to-ship
       live formula for `simtabi/homebrew-tap/Formula/`. Stdlib-only,
       depends_on python@3.13, `test do` exercises `--version`,
       `decisions list`, and `--help` (which must include the
@@ -300,8 +300,8 @@ Status matrix at v0.3.0:
 
 | # | Where | Issue |
 |---|---|---|
-| C1 | `src/ai_configurator/manager.py` | The 1500+ line file is dense. Consider extracting `decisions_*` methods to a sibling `decisions.py` module while keeping `ClaudeConfig` as the orchestrator. |
-| C2 | All commands | We don't have a `--json` output mode anywhere. Adding one would let other tools script around `ai-configurator status` etc. |
+| C1 | `src/ai_config_kit/manager.py` | The 1500+ line file is dense. Consider extracting `decisions_*` methods to a sibling `decisions.py` module while keeping `ClaudeConfig` as the orchestrator. |
+| C2 | All commands | We don't have a `--json` output mode anywhere. Adding one would let other tools script around `ai-config-kit status` etc. |
 | C3 | `cli.py` | The bootstrap command's `--remote URL` flag accepts arbitrary URLs. Validate it's https:// or git@ before passing to git. |
 | C4 | `decisions apply` | When `--force` is given, doesn't show a diff first. Add a confirm-with-diff for tty users. |
 | C5 | Cross-project | Audit-checklist + agent-loop instructions are duplicated between this SPEC and `get-installer/SPEC.md`. If a third project adopts the pattern, factor into a shared template. |
@@ -378,7 +378,7 @@ Same as `get-installer/SPEC.md` §8:
                        │ managed by
                        │
               ┌──────────────────────────────┐
-              │  ai-configurator CLI     │  (this Python package)
+              │  ai-config-kit CLI     │  (this Python package)
               │   bootstrap / install / ...  │
               └──────────────────────────────┘
 ```
@@ -386,7 +386,7 @@ Same as `get-installer/SPEC.md` §8:
 ## 10: Directory layout
 
 ```
-ai-configurator/
+ai-config-kit/
 ├── README.md              # the single authoritative README
 ├── SPEC.md                # this file
 ├── LICENSE
@@ -411,9 +411,9 @@ ai-configurator/
 │   ├── decisions.md
 │   ├── release.md
 │   ├── shipping-checklist.md
-│   └── tools/ai-configurator.md
+│   └── tools/ai-config-kit.md
 ├── src/
-│   └── ai_configurator/
+│   └── ai_config_kit/
 │       ├── __init__.py
 │       ├── __main__.py
 │       ├── cli.py
@@ -429,14 +429,14 @@ ai-configurator/
     └── test_cli.py
 ```
 
-The repo (folder name `ai-configurator`, plural) and the package name
-(`ai-configurator`, singular) intentionally differ: the folder
+The repo (folder name `ai-config-kit`, plural) and the package name
+(`ai-config-kit`, singular) intentionally differ: the folder
 predates the rename and renaming the GitHub repo would break inbound
 links. This dual identity is documented in `docs/architecture.md`.
 
 ---
 
-*Last updated 2026-05-15: project renamed to ai-configurator, 13
+*Last updated 2026-05-15: project renamed to ai-config-kit, 13
 bundled packs (12 auto-applied), multi-vendor end-to-end (seven CLI
 vendors wired via `VendorAdapter`), `compose-agents-md` +
 `project-install` verbs, auto-reconcile-on-upgrade, Homebrew tap

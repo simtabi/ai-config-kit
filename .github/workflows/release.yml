@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/ai-configurator
+      url: https://pypi.org/p/ai-config-kit
     permissions:
       id-token: write  # OIDC for trusted publishing
     steps:

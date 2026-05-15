@@ -5,14 +5,14 @@ fragments, slash commands, hooks, or settings that distils a
 battle-tested practice into a drop-in.
 
 Each pack ships inside the package at
-`ai_configurator/resources/decisions/<name>/` and is accessible
+`ai_config_kit/resources/decisions/<name>/` and is accessible
 through three CLI verbs:
 
 | Command | Purpose |
 |---|---|
-| `ai-configurator decisions list` | Show every bundled pack with its one-line description. |
-| `ai-configurator decisions show <name>` | Print the pack's manifest + embedded details. |
-| `ai-configurator decisions apply <name> [--force] [--dry-run]` | Copy a pack's files into the content dir. Refuses to overwrite existing files unless `--force`. |
+| `ai-config-kit decisions list` | Show every bundled pack with its one-line description. |
+| `ai-config-kit decisions show <name>` | Print the pack's manifest + embedded details. |
+| `ai-config-kit decisions apply <name> [--force] [--dry-run]` | Copy a pack's files into the content dir. Refuses to overwrite existing files unless `--force`. |
 
 ## Pack layout
 
@@ -44,12 +44,12 @@ read, copy-pasted, or appended manually.
 
 ## Bundled packs
 
-Auto-applied by `ai-configurator init` (skip with `--no-decisions`):
+Auto-applied by `ai-config-kit init` (skip with `--no-decisions`):
 
 | Pack | What it ships |
 |---|---|
 | `script-generation-pattern` | Slash command + `CLAUDE.md` fragment teaching the model to write a generator script for many-file or content-filter-risky tasks. |
-| `fetch-canonical-pattern` | `/fetch-canonical` slash command + `CLAUDE.md` fragment routing canonical-file downloads disk-to-disk via `ai-configurator fetch` or `curl -o`. |
+| `fetch-canonical-pattern` | `/fetch-canonical` slash command + `CLAUDE.md` fragment routing canonical-file downloads disk-to-disk via `ai-config-kit fetch` or `curl -o`. |
 | `session-protocol` | Five slash commands (`/session-start`, `/session-end`, `/track-progress`, `/research-source`, `/clarify`) + fragment codifying audit-on-start / track-progress / self-improve-on-end. |
 | `docker-multiarch` | `/docker-multiarch-check` slash command + self-gating fragment. Requires every published image to build for `linux/amd64` and `linux/arm64`. |
 | `docker-env-interpolation` | POSIX shell script (`scripts/render-env.sh`) that flattens layered `.env` files into one resolved output; `/render-env` slash command walks invocation. |
@@ -68,12 +68,12 @@ Opt-in:
 |---|---|
 | `core` | Skeleton `CLAUDE.md` + `settings.json` for a fresh content dir. Apply with `--force` if you want to overwrite the default seed. |
 
-Run `ai-configurator decisions show <name>` to see a pack's full
+Run `ai-config-kit decisions show <name>` to see a pack's full
 details (the embedded `details.md`).
 
 ## Adding a new pack
 
-1. Create `src/ai_configurator/resources/decisions/<name>/`
+1. Create `src/ai_config_kit/resources/decisions/<name>/`
    with `manifest.json`, `details.md`, and a `files/` subtree.
 2. Wheel builds include it automatically: no `pyproject.toml`
    change needed.

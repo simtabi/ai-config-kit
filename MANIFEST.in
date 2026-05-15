@@ -1,4 +1,4 @@
-# sdist contents for ai-configurator. Hatchling reads the modern
+# sdist contents for ai-config-kit. Hatchling reads the modern
 # packaging-data declaration in pyproject.toml; this file is a
 # belt-and-braces fallback for older tools that read MANIFEST.in.
 
@@ -15,8 +15,8 @@ include .editorconfig
 include .gitignore
 include Makefile
 
-recursive-include src/ai_configurator *.py py.typed
-recursive-include src/ai_configurator/resources/decisions *.json *.md *.fragment
+recursive-include src/ai_config_kit *.py py.typed
+recursive-include src/ai_config_kit/resources/decisions *.json *.md *.fragment
 recursive-include docs *.md
 recursive-include tests *.py
 recursive-include examples *

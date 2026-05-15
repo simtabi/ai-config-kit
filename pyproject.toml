@@ -3,10 +3,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-# PyPI distribution name. The CLI binary, Python module, and GitHub
-# repo are all still ai-configurator / ai_configurator. The shorter
-# pip-install name was chosen for typing ergonomics.
-name = "aicfg"
+name = "ai-config-kit"
 version = "0.4.2"
 description = "Manage ~/.claude and cross-vendor AI agent rules: 7-vendor adapters, decision packs, AGENTS.md composition."
 readme = "README.md"
@@ -42,20 +39,20 @@ dev = [
 ]
 
 [project.scripts]
-ai-configurator = "ai_configurator.cli:main"
+ai-config-kit = "ai_config_kit.cli:main"
 
 [project.urls]
-Homepage      = "https://opensource.simtabi.com/products/ai-configurator"
-Documentation = "https://opensource.simtabi.com/documentation/ai-configurator"
-Repository    = "https://github.com/simtabi/ai-configurator"
-Issues        = "https://github.com/simtabi/ai-configurator/issues"
-Changelog     = "https://github.com/simtabi/ai-configurator/blob/main/CHANGELOG.md"
+Homepage      = "https://opensource.simtabi.com/products/ai-config-kit"
+Documentation = "https://opensource.simtabi.com/documentation/ai-config-kit"
+Repository    = "https://github.com/simtabi/ai-config-kit"
+Issues        = "https://github.com/simtabi/ai-config-kit/issues"
+Changelog     = "https://github.com/simtabi/ai-config-kit/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ai_configurator"]
+packages = ["src/ai_config_kit"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/ai_configurator/py.typed" = "ai_configurator/py.typed"
+"src/ai_config_kit/py.typed" = "ai_config_kit/py.typed"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -79,4 +76,4 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["src/ai_configurator"]
+files = ["src/ai_config_kit"]

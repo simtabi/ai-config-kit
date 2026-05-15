@@ -20,13 +20,13 @@ Pick the option that matches how you usually install Python tools.
 
 ```bash
 # Standard pip
-pip install aicfg
+pip install ai-config-kit
 
 # Isolated (recommended for tools)
-pipx install aicfg
+pipx install ai-config-kit
 
 # uv
-uv tool install aicfg
+uv tool install ai-config-kit
 ```
 
 ## First-time setup
@@ -35,7 +35,7 @@ The one-shot wrapper runs validation, content-dir init, symlink install,
 and a health check:
 
 ```bash
-ai-configurator bootstrap
+ai-config-kit bootstrap
 ```
 
 Re-running `bootstrap` on a machine that's already set up is safe: each
@@ -47,9 +47,9 @@ Push your content dir to a private git repo from machine A, then on
 machine B:
 
 ```bash
-pip install aicfg
+pip install ai-config-kit
 git clone git@github.com:you/my-claude-content.git ~/.config/claude-config/content
-ai-configurator bootstrap
+ai-config-kit bootstrap
 ```
 
 ### CI / ephemeral environments
@@ -61,7 +61,7 @@ point at a checked-out content dir:
 git clone https://github.com/you/claude-content /tmp/cc
 CLAUDE_CONFIG_CONTENT_DIR=/tmp/cc \
 CLAUDE_CONFIG_TARGET=/tmp/runtime-claude \
-  ai-configurator bootstrap --no-git --yes
+  ai-config-kit bootstrap --no-git --yes
 ```
 
 `--yes` skips all confirmation prompts; `--no-git` skips `git init` (no
@@ -70,8 +70,8 @@ need for git in an ephemeral checkout).
 ## Uninstall
 
 ```bash
-ai-configurator uninstall      # remove symlinks; restore pre-install backups
-pip uninstall ai-configurator  # remove the CLI
+ai-config-kit uninstall      # remove symlinks; restore pre-install backups
+pip uninstall ai-config-kit  # remove the CLI
 ```
 
 Your content dir is **never touched** by `uninstall`: back it up first

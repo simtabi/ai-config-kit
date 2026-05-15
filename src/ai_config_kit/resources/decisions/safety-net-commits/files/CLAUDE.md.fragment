@@ -1,0 +1,62 @@
+## Safety-net commits
+
+Every significant change should land in git history before the next
+significant change. The agent's job is to suggest checkpoints; the
+human's job is to accept or defer.
+
+### When to suggest a checkpoint commit
+
+Suggest (and pause for the user's go-ahead) when:
+
+1. **Before any destructive operation**: `git reset --hard`,
+   `git push --force`, `git branch -D`, bulk file rename, mass
+   refactor, schema migration, drop-and-recreate of a database.
+2. **After a successful milestone**: every 3-5 tool calls in a
+   multi-step task. Don't accumulate 30 unrelated changes in one
+   diff.
+3. **Before any `ai-config-kit` operation that rewrites the
+   content dir**: `install`, `repair`, `decisions apply --force`,
+   `track`, `cleanup --apply`.
+4. **When the working tree has > 10 uncommitted files**: review
+   debt scales with diff size; smaller diffs review better.
+5. **At session end**: last paragraph of the hand-off should
+   include a "commit this work?" prompt.
+
+### How to suggest (and what NOT to do)
+
+- **Always ask.** Per the user's standing CLAUDE.md: no `git add`,
+  `git commit`, or `git push` without an explicit verb from me.
+- **Show the proposed message.** Imperative subject ≤ 72 chars,
+  body explains the why.
+- **Show the diff size.** `<N files changed, +A −B lines>` so I can
+  decide if it's the right granularity.
+- **Don't commit secrets.** If `git status` shows `.env`,
+  `.credentials.json`, or any path matching the project's
+  `secret_patterns`, refuse + suggest gitignore instead.
+- **Don't squash retroactively.** Don't `git commit --amend` a
+  pushed commit. Don't `git rebase -i` shared branches.
+
+### Reverting
+
+When a checkpoint commit is suggested and accepted, future failures
+are recoverable:
+
+- `git diff <checkpoint-sha> HEAD`: what changed since.
+- `git reset --hard <checkpoint-sha>`: go back to that state.
+  (Destructive; needs explicit verb.)
+- `git revert <bad-sha>`: undo a specific commit without losing
+  history. Preferred over reset on shared branches.
+
+### The slash commands
+
+- `/checkpoint-now [<message>]`: prompts to commit current
+  uncommitted work as a checkpoint. Generates a sensible message
+  from the diff if none given.
+- `/review-changes`: shows the current diff grouped by file type
+  + size, ready for review.
+
+### Don't be a nag
+
+This rule is "suggest at meaningful moments", not "interrupt every
+30 seconds". One prompt per chain is plenty. If the user said "go
+ahead" once, don't re-ask the same chain.

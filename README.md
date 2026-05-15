@@ -1,14 +1,14 @@
-# ai-configurator
+# ai-config-kit
 
-[![CI](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml/badge.svg)](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/aicfg.svg)](https://pypi.org/project/aicfg/)
-[![Python](https://img.shields.io/pypi/pyversions/aicfg.svg)](https://pypi.org/project/aicfg/)
-[![License](https://img.shields.io/github/license/simtabi/ai-configurator.svg)](LICENSE)
+[![CI](https://github.com/simtabi/ai-config-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/simtabi/ai-config-kit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/ai-config-kit.svg)](https://pypi.org/project/ai-config-kit/)
+[![Python](https://img.shields.io/pypi/pyversions/ai-config-kit.svg)](https://pypi.org/project/ai-config-kit/)
+[![License](https://img.shields.io/github/license/simtabi/ai-config-kit.svg)](LICENSE)
 
 Version your `~/.claude/` directory without versioning your caches.
 Author rules once, ship them to every AI coding agent you use.
 
-`ai-configurator` symlinks a content directory you control into
+`ai-config-kit` symlinks a content directory you control into
 `~/.claude/` at the paths [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
 expects, ships opinionated "decision packs" that bake in
 content-filter-safe practices, and gives you one verb each for
@@ -17,8 +17,8 @@ project repo. Wired adapters: claude-code, aider, cursor, windsurf,
 copilot, codex, cline.
 
 ```bash
-pip install aicfg
-ai-configurator bootstrap        # validate + init + install + doctor, one shot
+pip install ai-config-kit
+ai-config-kit bootstrap        # validate + init + install + doctor, one shot
 ```
 
 ---
@@ -52,7 +52,7 @@ ai-configurator bootstrap        # validate + init + install + doctor, one shot
 
 Putting the whole directory under git means versioning hundreds of MB
 of caches and fighting `.gitignore` every time Claude Code adds a new
-runtime path. `ai-configurator` solves this by keeping your
+runtime path. `ai-config-kit` solves this by keeping your
 canonical config in a content directory (default
 `~/.config/claude-config/content/`), symlinked into `~/.claude/` at
 the right paths. Edit a file in `~/.claude/` and you're editing the
@@ -66,9 +66,9 @@ The classification above is enforced by the install command. See
 ## Install
 
 ```bash
-pip install aicfg
-# or:  pipx install aicfg
-# or:  uv tool install aicfg
+pip install ai-config-kit
+# or:  pipx install ai-config-kit
+# or:  uv tool install ai-config-kit
 ```
 
 Requirements: Python 3.10+, `git` on `PATH` (only for `init` and
@@ -80,14 +80,14 @@ either Administrator or Developer Mode). Full install notes in
 
 ## One-liner install (any platform)
 
-If you have neither `pip` nor `ai-configurator` yet, use the
+If you have neither `pip` nor `ai-config-kit` yet, use the
 [`get-installer`](https://github.com/simtabi/get-installer) bootstrap
 (a sibling Simtabi project):
 
 ```bash
 # POSIX (macOS / Linux / WSL / Git-Bash)
 sh -c "$(curl -fsSL https://get.simtabi.com/install.sh)" -- \
-  --product ai-configurator
+  --product ai-config-kit
 
 # PowerShell (Windows)
 irm https://get.simtabi.com/install.ps1 | iex
@@ -102,7 +102,7 @@ it. Full design + threat model: <https://github.com/simtabi/get-installer>.
 ## Quick start (after pip install)
 
 ```bash
-ai-configurator bootstrap
+ai-config-kit bootstrap
 ```
 
 Runs validate → init → install → doctor with prompts. Idempotent:
@@ -114,27 +114,27 @@ happen.
 Once installed:
 
 ```bash
-ai-configurator status              # what's tracked, what's not, git state
-ai-configurator list                # grouped view of everything in content
-ai-configurator view CLAUDE.md      # print a tracked file
-ai-configurator sync -m "tighten X" # commit changes in the content dir
+ai-config-kit status              # what's tracked, what's not, git state
+ai-config-kit list                # grouped view of everything in content
+ai-config-kit view CLAUDE.md      # print a tracked file
+ai-config-kit sync -m "tighten X" # commit changes in the content dir
 ```
 
 ---
 
 ## Multi-vendor: one rules source, every AI agent
 
-`ai-configurator` ships adapters for seven CLI-based AI coding agents.
+`ai-config-kit` ships adapters for seven CLI-based AI coding agents.
 Authored rules live once in your content dir; each vendor's expected
 file format gets generated on demand.
 
 ```bash
 # Compose the cross-vendor canonical from CLAUDE.md + decision packs
-ai-configurator compose-agents-md
+ai-config-kit compose-agents-md
 
 # Drop AGENTS.md, .cursorrules, .windsurfrules, .clinerules, and
 # .github/copilot-instructions.md into a project repo in one shot
-ai-configurator project-install ~/code/my-app \
+ai-config-kit project-install ~/code/my-app \
     --vendor=aider --vendor=cursor --vendor=windsurf \
     --vendor=copilot --vendor=codex --vendor=cline
 ```
@@ -161,34 +161,34 @@ per-project files are never overwritten without `--force`.
 
 | Verb | What it does |
 |---|---|
-| [`bootstrap`](docs/tools/ai-configurator.md#bootstrap--one-shot-first-time-setup) | One-shot setup (validate + init + install + optional push + doctor). |
-| [`init`](docs/tools/ai-configurator.md#init--create-the-content-dir) | Create the content dir + git repo + apply default decision packs. |
-| [`install`](docs/tools/ai-configurator.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`; also drops `AGENTS.md` into each non-claude-code vendor's global target (e.g., `~/.cursor/rules/`). |
-| [`compose-agents-md`](docs/tools/ai-configurator.md#compose-agents-md-synthesize-the-canonical-cross-vendor-file) | Synthesize a single `AGENTS.md` from `CLAUDE.md` + decision-pack fragments. |
-| [`project-install`](docs/tools/ai-configurator.md#project-install-per-vendor-files-for-a-project-repo) | Write per-vendor files (`AGENTS.md`, `.cursorrules`, `.windsurfrules`, ...) into a project repo. |
-| [`uninstall`](docs/tools/ai-configurator.md#uninstall--remove-symlinks) | Remove symlinks; restore pre-install backups. |
-| [`sync`](docs/tools/ai-configurator.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
-| [`track`](docs/tools/ai-configurator.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
-| [`status`](docs/tools/ai-configurator.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |
-| [`doctor`](docs/tools/ai-configurator.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. `--heal` also runs the permission audit. |
-| [`heal`](docs/tools/ai-configurator.md#heal-audit--fix-permissions-on-the-content-dir) | Audit + (with `--yes`) fix mode bits on the content dir. Never escalates privilege; orphan-owner findings are flagged but never fixed. |
-| [`capacity`](docs/tools/ai-configurator.md#capacity-per-provider-overload-verdict-for-now-in-the-users-timezone) | Per-provider overload verdict (Anthropic, OpenAI, Codex, Google, Cohere, Mistral, local) computed against the user's local timezone using the bundled off-peak data. |
-| [`validate`](docs/tools/ai-configurator.md#validate--pre-flight-check) | Pre-flight environment check (Python, git, writability). |
-| [`list`](docs/tools/ai-configurator.md#list--grouped-view-of-content) | Grouped tree of content with size + count per group. |
-| [`view`](docs/tools/ai-configurator.md#view--print-a-tracked-file) | Print a tracked file's contents (path-traversal-safe). |
-| [`cleanup`](docs/tools/ai-configurator.md#cleanup--remove-noise) | Remove `.DS_Store`, broken symlinks, orphan backups. |
-| [`repair`](docs/tools/ai-configurator.md#repair--heal-a-broken-install) | Cleanup + rebuild symlinks + restore protected backups. |
+| [`bootstrap`](docs/tools/ai-config-kit.md#bootstrap--one-shot-first-time-setup) | One-shot setup (validate + init + install + optional push + doctor). |
+| [`init`](docs/tools/ai-config-kit.md#init--create-the-content-dir) | Create the content dir + git repo + apply default decision packs. |
+| [`install`](docs/tools/ai-config-kit.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`; also drops `AGENTS.md` into each non-claude-code vendor's global target (e.g., `~/.cursor/rules/`). |
+| [`compose-agents-md`](docs/tools/ai-config-kit.md#compose-agents-md-synthesize-the-canonical-cross-vendor-file) | Synthesize a single `AGENTS.md` from `CLAUDE.md` + decision-pack fragments. |
+| [`project-install`](docs/tools/ai-config-kit.md#project-install-per-vendor-files-for-a-project-repo) | Write per-vendor files (`AGENTS.md`, `.cursorrules`, `.windsurfrules`, ...) into a project repo. |
+| [`uninstall`](docs/tools/ai-config-kit.md#uninstall--remove-symlinks) | Remove symlinks; restore pre-install backups. |
+| [`sync`](docs/tools/ai-config-kit.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
+| [`track`](docs/tools/ai-config-kit.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
+| [`status`](docs/tools/ai-config-kit.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |
+| [`doctor`](docs/tools/ai-config-kit.md#doctor--verify-symlink-health) | Verify every symlink resolves to a tracked source. `--heal` also runs the permission audit. |
+| [`heal`](docs/tools/ai-config-kit.md#heal-audit--fix-permissions-on-the-content-dir) | Audit + (with `--yes`) fix mode bits on the content dir. Never escalates privilege; orphan-owner findings are flagged but never fixed. |
+| [`capacity`](docs/tools/ai-config-kit.md#capacity-per-provider-overload-verdict-for-now-in-the-users-timezone) | Per-provider overload verdict (Anthropic, OpenAI, Codex, Google, Cohere, Mistral, local) computed against the user's local timezone using the bundled off-peak data. |
+| [`validate`](docs/tools/ai-config-kit.md#validate--pre-flight-check) | Pre-flight environment check (Python, git, writability). |
+| [`list`](docs/tools/ai-config-kit.md#list--grouped-view-of-content) | Grouped tree of content with size + count per group. |
+| [`view`](docs/tools/ai-config-kit.md#view--print-a-tracked-file) | Print a tracked file's contents (path-traversal-safe). |
+| [`cleanup`](docs/tools/ai-config-kit.md#cleanup--remove-noise) | Remove `.DS_Store`, broken symlinks, orphan backups. |
+| [`repair`](docs/tools/ai-config-kit.md#repair--heal-a-broken-install) | Cleanup + rebuild symlinks + restore protected backups. |
 | [`decisions`](docs/decisions.md) | List / show / apply bundled global-decision packs. |
-| [`fetch`](docs/tools/ai-configurator.md#fetch--disk-to-disk-download) | Disk-to-disk download of a canonical / upstream text file. |
+| [`fetch`](docs/tools/ai-config-kit.md#fetch--disk-to-disk-download) | Disk-to-disk download of a canonical / upstream text file. |
 
 Every subcommand has `--help`. The full reference lives in
-[`docs/tools/ai-configurator.md`](docs/tools/ai-configurator.md).
+[`docs/tools/ai-config-kit.md`](docs/tools/ai-config-kit.md).
 
 ---
 
 ## Decisions: bundled global rules
 
-`ai-configurator` ships **decision packs**: opinionated bundles
+`ai-config-kit` ships **decision packs**: opinionated bundles
 of `CLAUDE.md` fragments and slash commands that bake in proven
 patterns. Two are auto-applied on `init` (skip with `--no-decisions`):
 
@@ -198,9 +198,9 @@ patterns. Two are auto-applied on `init` (skip with `--no-decisions`):
 | `fetch-canonical-pattern` | `/fetch-canonical` slash command + `CLAUDE.md` fragment for canonical-file downloads (license, code of conduct, etc.) that route URL → disk and never through the response stream. |
 
 ```bash
-ai-configurator decisions list                # show all bundled packs
-ai-configurator decisions show <name>         # print pack details
-ai-configurator decisions apply <name>        # copy into content dir (non-clobbering)
+ai-config-kit decisions list                # show all bundled packs
+ai-config-kit decisions show <name>         # print pack details
+ai-config-kit decisions apply <name>        # copy into content dir (non-clobbering)
 ```
 
 Full guide and pack-authoring schema:
@@ -215,11 +215,11 @@ other well-known upstream text often trips a content-filter policy
 block. The model's file-write tool streams the body through the
 response, and the filter watches that stream.
 
-`ai-configurator fetch` routes the bytes URL → disk via Python's
+`ai-config-kit fetch` routes the bytes URL → disk via Python's
 stdlib (`urllib.request`). The response only contains the metadata:
 
 ```bash
-ai-configurator fetch https://example.com/license.txt ./LICENSE
+ai-config-kit fetch https://example.com/license.txt ./LICENSE
 # path=…  bytes=11357  lines=202  sha256=…  status=created  first_line=Apache License
 ```
 
@@ -236,13 +236,13 @@ Push the content dir to a private git repo from machine A, then on
 machine B:
 
 ```bash
-pip install aicfg
+pip install ai-config-kit
 git clone git@github.com:you/my-claude-content.git ~/.config/claude-config/content
-ai-configurator bootstrap
+ai-config-kit bootstrap
 ```
 
 The on-disk path stays `~/.config/claude-config/` (not
-`ai-configurator/`) so existing installs keep working. The
+`ai-config-kit/`) so existing installs keep working. The
 package name is what changed.
 
 ---
@@ -254,7 +254,7 @@ package name is what changed.
 | [`docs/installation.md`](docs/installation.md) | Install, requirements, CI setup, Windows note |
 | [`docs/configuration.md`](docs/configuration.md) | JSON config schema, env vars, secret patterns, host overlays |
 | [`docs/architecture.md`](docs/architecture.md) | Symlink design, content-dir layout, classification table |
-| [`docs/tools/ai-configurator.md`](docs/tools/ai-configurator.md) | Per-subcommand reference with all flags |
+| [`docs/tools/ai-config-kit.md`](docs/tools/ai-config-kit.md) | Per-subcommand reference with all flags |
 | [`docs/decisions.md`](docs/decisions.md) | Decision-pack catalogue + schema for authors |
 | [`docs/release.md`](docs/release.md) | Tag-driven release flow, OIDC trusted publishing |
 | [`docs/shipping-checklist.md`](docs/shipping-checklist.md) | One-time + ongoing release prep |
@@ -265,10 +265,10 @@ package name is what changed.
 ## Project layout
 
 ```
-ai-configurator/
+ai-config-kit/
 ├── README.md                       you are here (the single authoritative readme)
 ├── docs/                           subdocs (lowercase-kebab, linked from README)
-├── src/ai_configurator/        the package
+├── src/ai_config_kit/        the package
 │   ├── manager.py                  ClaudeConfig class + all report types
 │   ├── cli.py                      thin argparse wrapper
 │   ├── __init__.py                 public API
@@ -286,7 +286,7 @@ ai-configurator/
 ```
 
 Per-pack details live next to each pack as `details.md` (shown by
-`ai-configurator decisions show <name>`). No per-pack README.md
+`ai-config-kit decisions show <name>`). No per-pack README.md
 files to disambiguate from this one.
 
 ---

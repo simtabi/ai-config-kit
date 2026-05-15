@@ -1,4 +1,4 @@
-# Contributing to ai-configurator
+# Contributing to ai-config-kit
 
 Thanks for considering a contribution. This file captures the rules
 that keep the codebase consistent.
@@ -6,13 +6,13 @@ that keep the codebase consistent.
 ## Development setup
 
 ```bash
-git clone https://github.com/simtabi/ai-configurator
-cd ai-configurator
+git clone https://github.com/simtabi/ai-config-kit
+cd ai-config-kit
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest -q
 ruff check src tests
-mypy src/ai_configurator
+mypy src/ai_config_kit
 ```
 
 All four must be green on every PR. CI re-runs them on macOS +
@@ -92,7 +92,7 @@ Open an issue with:
 - What you ran (exact command line)
 - What happened (output + exit code)
 - What you expected
-- `ai-configurator status` + `ai-configurator doctor` output
+- `ai-config-kit status` + `ai-config-kit doctor` output
 - Python version, OS
 
 ## Reporting security issues

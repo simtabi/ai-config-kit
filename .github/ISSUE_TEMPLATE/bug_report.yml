@@ -8,7 +8,7 @@ body:
       label: What happened
       description: Exact command, exact output, exact expected output.
       placeholder: |
-        Ran: ai-configurator bootstrap --no-git
+        Ran: ai-config-kit bootstrap --no-git
         Saw: ...
         Expected: ...
     validations:
@@ -18,7 +18,7 @@ body:
     id: status-output
     attributes:
       label: Status and doctor output
-      description: Paste the output of `ai-configurator status` and `ai-configurator doctor`.
+      description: Paste the output of `ai-config-kit status` and `ai-config-kit doctor`.
       render: shell
     validations:
       required: true
@@ -26,9 +26,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: ai-configurator version
-      description: Output of `ai-configurator --version`.
-      placeholder: ai-configurator 0.2.0
+      label: ai-config-kit version
+      description: Output of `ai-config-kit --version`.
+      placeholder: ai-config-kit 0.2.0
     validations:
       required: true
 

@@ -1,11 +1,11 @@
 # Homebrew tap distribution
 
-`ai-configurator` ships through the `simtabi/homebrew-tap` repository
+`ai-config-kit` ships through the `simtabi/homebrew-tap` repository
 as a complementary channel to `pip install`. Users on macOS / Linuxbrew
 who prefer Homebrew can run:
 
 ```bash
-brew install simtabi/tap/ai-configurator
+brew install simtabi/tap/ai-config-kit
 ```
 
 This page covers the one-time tap setup and the per-release bump.
@@ -14,8 +14,8 @@ This page covers the one-time tap setup and the per-release bump.
 
 | Situation | Best channel |
 |---|---|
-| Fresh-machine bootstrap, any OS | `pip install aicfg` |
-| User already has Homebrew + pinned Python | `brew install simtabi/tap/ai-configurator` |
+| Fresh-machine bootstrap, any OS | `pip install ai-config-kit` |
+| User already has Homebrew + pinned Python | `brew install simtabi/tap/ai-config-kit` |
 | `pipx` / `uv tool` user | the matching tool's install verb |
 | CI image build | `pip install` directly in the image |
 
@@ -25,12 +25,12 @@ isn't a replacement for `pip install`.
 ## Live formula
 
 The ready-to-ship formula lives at
-[`templates/homebrew-formula/ai-configurator.rb`](../../templates/homebrew-formula/ai-configurator.rb).
+[`templates/homebrew-formula/ai-config-kit.rb`](../../templates/homebrew-formula/ai-config-kit.rb).
 On every PyPI release, the same file (with updated `url` + `sha256`)
-lands in `simtabi/homebrew-tap/Formula/ai-configurator.rb`.
+lands in `simtabi/homebrew-tap/Formula/ai-config-kit.rb`.
 
 The formula has zero runtime dependencies declared because
-`ai-configurator` is stdlib-only. The `test do` block exercises:
+`ai-config-kit` is stdlib-only. The `test do` block exercises:
 
 1. `--version` returns the expected version string.
 2. `decisions list` reports the bundled-packs surface (proves the
@@ -53,8 +53,8 @@ The formula has zero runtime dependencies declared because
 3. Copy the live formula into `Formula/`:
 
    ```bash
-   cp /path/to/ai-configurator/templates/homebrew-formula/ai-configurator.rb \
-      Formula/ai-configurator.rb
+   cp /path/to/ai-config-kit/templates/homebrew-formula/ai-config-kit.rb \
+      Formula/ai-config-kit.rb
    ```
 
 4. Replace the placeholder `sha256` line with the real PyPI sdist
@@ -62,18 +62,18 @@ The formula has zero runtime dependencies declared because
 
    ```bash
    VERSION=0.2.0
-   PKG=ai_configurator
+   PKG=ai_config_kit
    PYPI_URL="https://files.pythonhosted.org/packages/source/${PKG:0:1}/${PKG//-/_}/${PKG//-/_}-${VERSION}.tar.gz"
    SHA=$(curl -fsSL "$PYPI_URL" | shasum -a 256 | awk '{print $1}')
-   sed -i.bak "s/REPLACE_WITH_PYPI_SDIST_SHA256_ON_RELEASE/${SHA}/" Formula/ai-configurator.rb
-   rm Formula/ai-configurator.rb.bak
+   sed -i.bak "s/REPLACE_WITH_PYPI_SDIST_SHA256_ON_RELEASE/${SHA}/" Formula/ai-config-kit.rb
+   rm Formula/ai-config-kit.rb.bak
    ```
 
 5. Lint:
 
    ```bash
-   brew style --fix Formula/ai-configurator.rb
-   brew audit --new --strict Formula/ai-configurator.rb
+   brew style --fix Formula/ai-config-kit.rb
+   brew audit --new --strict Formula/ai-config-kit.rb
    ```
 
 6. Commit + push to `simtabi/homebrew-tap`.
@@ -90,7 +90,7 @@ Once the tap exists, add this to the release workflow in
   with:
     token: ${{ secrets.TAP_GITHUB_TOKEN }}
     tap: simtabi/homebrew-tap
-    formula: ai-configurator
+    formula: ai-config-kit
     tag: ${{ github.ref_name }}
     revision: ${{ github.sha }}
 ```
@@ -103,13 +103,13 @@ on the tap passes.
 
 - **Python pin**: depends on `python@3.13` (newest stable). Update on
   a major Homebrew Python bump.
-- **No `bottle` blocks**: `ai-configurator` is pure Python, so source
+- **No `bottle` blocks**: `ai-config-kit` is pure Python, so source
   build is fine on every platform.
 - **Linuxbrew compatibility**: untested. Pure-Python formulas usually
   work; smoke-test on a Linux runner before announcing.
 
 ## See also
 
-- [`templates/homebrew-formula/ai-configurator.rb`](../../templates/homebrew-formula/ai-configurator.rb)
+- [`templates/homebrew-formula/ai-config-kit.rb`](../../templates/homebrew-formula/ai-config-kit.rb)
 - [Homebrew tap docs](https://docs.brew.sh/Taps)
 - [`brew create --python` reference](https://docs.brew.sh/Python-for-Formula-Authors)

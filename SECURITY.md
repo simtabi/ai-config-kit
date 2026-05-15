@@ -6,7 +6,7 @@
 
 - Email: `opensource@simtabi.com` (preferred)
 - GitHub private advisory:
-  <https://github.com/simtabi/ai-configurator/security/advisories/new>
+  <https://github.com/simtabi/ai-config-kit/security/advisories/new>
 
 We aim to acknowledge within 72 hours. Please include:
 
@@ -29,7 +29,7 @@ fixes only for High and Critical severities.
 
 In scope:
 
-- The `ai-configurator` Python package on PyPI
+- The `ai-config-kit` Python package on PyPI
 - The source code in this repository
 - The CLI entry point and the `ClaudeConfig` class
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_configurator import (
+from ai_config_kit import (
     BootstrapReport,
     ClaudeConfig,
     CleanupReport,
@@ -1202,7 +1202,7 @@ def test_reconcile_skipped_when_versions_match(
     cfg.save_config(cfg_file)
 
     # Pin _package_version to a known value + write the same in config
-    from ai_configurator import manager as m
+    from ai_config_kit import manager as m
     monkeypatch.setattr(m, "_package_version", lambda: "1.2.3")
     cfg2 = ClaudeConfig.from_config(cfg_file)
     cfg2._write_last_applied_version("1.2.3")
@@ -1220,7 +1220,7 @@ def test_reconcile_applies_packs_on_version_bump(
     cfg_file = tmp_path / "cfg.json"
     cfg.save_config(cfg_file)
 
-    from ai_configurator import manager as m
+    from ai_config_kit import manager as m
     monkeypatch.setattr(m, "_package_version", lambda: "9.9.9")
     cfg2 = ClaudeConfig.from_config(cfg_file)
     # No last_applied_version written: defaults to "0.0.0"
@@ -1241,7 +1241,7 @@ def test_reconcile_writes_version_to_config(
     cfg_file = tmp_path / "cfg.json"
     cfg.save_config(cfg_file)
 
-    from ai_configurator import manager as m
+    from ai_config_kit import manager as m
     monkeypatch.setattr(m, "_package_version", lambda: "5.0.0")
     cfg2 = ClaudeConfig.from_config(cfg_file)
 
@@ -1260,7 +1260,7 @@ def test_reconcile_force_reapplies(
     """force_reapply=True applies packs even when versions match."""
     cfg_file = tmp_path / "cfg.json"
     cfg.save_config(cfg_file)
-    from ai_configurator import manager as m
+    from ai_config_kit import manager as m
     monkeypatch.setattr(m, "_package_version", lambda: "1.0.0")
     cfg2 = ClaudeConfig.from_config(cfg_file)
     cfg2._write_last_applied_version("1.0.0")
