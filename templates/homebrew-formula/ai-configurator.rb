@@ -29,7 +29,7 @@ class AiConfigurator < Formula
   url "https://files.pythonhosted.org/packages/source/a/ai-configurator/ai_configurator-0.4.2.tar.gz"
   sha256 "REPLACE_WITH_PYPI_SDIST_SHA256_ON_RELEASE"
   license "MIT"
-  head "https://github.com/simtabi/claude-configs.git", branch: "main"
+  head "https://github.com/simtabi/ai-configurator.git", branch: "main"
 
   depends_on "python@3.13"
 

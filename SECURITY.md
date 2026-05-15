@@ -6,7 +6,7 @@
 
 - Email: `opensource@simtabi.com` (preferred)
 - GitHub private advisory:
-  <https://github.com/simtabi/claude-configs/security/advisories/new>
+  <https://github.com/simtabi/ai-configurator/security/advisories/new>
 
 We aim to acknowledge within 72 hours. Please include:
 

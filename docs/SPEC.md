@@ -101,7 +101,7 @@ with the user's request.
 | Python module | `ai_configurator` |
 | CLI command | `ai-configurator` |
 | Distribution channel | `get.simtabi.com` (via sibling `get-installer`) |
-| Repo | `https://github.com/simtabi/claude-configs` |
+| Repo | `https://github.com/simtabi/ai-configurator` |
 | License | MIT, `Copyright (c) 2026 Simtabi LLC` |
 | Min Python | 3.10 |
 | Runtime deps | **none** (stdlib only) |
@@ -386,7 +386,7 @@ Same as `get-installer/SPEC.md` §8:
 ## 10: Directory layout
 
 ```
-claude-configs/
+ai-configurator/
 ├── README.md              # the single authoritative README
 ├── SPEC.md                # this file
 ├── LICENSE
@@ -429,7 +429,7 @@ claude-configs/
     └── test_cli.py
 ```
 
-The repo (folder name `claude-configs`, plural) and the package name
+The repo (folder name `ai-configurator`, plural) and the package name
 (`ai-configurator`, singular) intentionally differ: the folder
 predates the rename and renaming the GitHub repo would break inbound
 links. This dual identity is documented in `docs/architecture.md`.

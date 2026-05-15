@@ -1,5 +1,10 @@
 # ai-configurator
 
+[![CI](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml/badge.svg)](https://github.com/simtabi/ai-configurator/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/ai-configurator.svg)](https://pypi.org/project/ai-configurator/)
+[![Python](https://img.shields.io/pypi/pyversions/ai-configurator.svg)](https://pypi.org/project/ai-configurator/)
+[![License](https://img.shields.io/github/license/simtabi/ai-configurator.svg)](LICENSE)
+
 Version your `~/.claude/` directory without versioning your caches.
 Author rules once, ship them to every AI coding agent you use.
 

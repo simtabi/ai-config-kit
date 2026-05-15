@@ -6,8 +6,8 @@ that keep the codebase consistent.
 ## Development setup
 
 ```bash
-git clone https://github.com/simtabi/claude-configs
-cd claude-configs
+git clone https://github.com/simtabi/ai-configurator
+cd ai-configurator
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest -q

@@ -44,9 +44,9 @@ ai-configurator = "ai_configurator.cli:main"
 [project.urls]
 Homepage      = "https://opensource.simtabi.com/products/ai-configurator"
 Documentation = "https://opensource.simtabi.com/documentation/ai-configurator"
-Repository    = "https://github.com/simtabi/claude-configs"
-Issues        = "https://github.com/simtabi/claude-configs/issues"
-Changelog     = "https://github.com/simtabi/claude-configs/blob/main/CHANGELOG.md"
+Repository    = "https://github.com/simtabi/ai-configurator"
+Issues        = "https://github.com/simtabi/ai-configurator/issues"
+Changelog     = "https://github.com/simtabi/ai-configurator/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_configurator"]

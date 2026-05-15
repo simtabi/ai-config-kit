@@ -502,11 +502,11 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
   a secret pattern.
 - `view` refuses path-traversal (`../`).
 
-[0.4.2]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.2
-[0.4.1]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.1
-[0.4.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.4.0
-[0.3.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.3.0
-[0.2.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.2.0
+[0.4.2]: https://github.com/simtabi/ai-configurator/releases/tag/v0.4.2
+[0.4.1]: https://github.com/simtabi/ai-configurator/releases/tag/v0.4.1
+[0.4.0]: https://github.com/simtabi/ai-configurator/releases/tag/v0.4.0
+[0.3.0]: https://github.com/simtabi/ai-configurator/releases/tag/v0.3.0
+[0.2.0]: https://github.com/simtabi/ai-configurator/releases/tag/v0.2.0
 
 ## [0.1.0] - Initial release
 
@@ -546,4 +546,4 @@ The data model is in `VendorAdapter` / `ProjectFile`; the verbs are
 - PEP 561 typed (`py.typed` ships with the wheel).
 - CLI installable via `pip` / `pipx` / `uv tool install`.
 
-[0.1.0]: https://github.com/simtabi/claude-configs/releases/tag/v0.1.0
+[0.1.0]: https://github.com/simtabi/ai-configurator/releases/tag/v0.1.0

@@ -53,7 +53,7 @@ The formula has zero runtime dependencies declared because
 3. Copy the live formula into `Formula/`:
 
    ```bash
-   cp /path/to/claude-configs/templates/homebrew-formula/ai-configurator.rb \
+   cp /path/to/ai-configurator/templates/homebrew-formula/ai-configurator.rb \
       Formula/ai-configurator.rb
    ```
 
