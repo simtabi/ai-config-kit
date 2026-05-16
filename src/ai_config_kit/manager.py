@@ -526,6 +526,52 @@ class DecisionsApplyReport:
 
 
 @dataclass(frozen=True)
+class DecisionDiff:
+    """One pack file's diff against the current on-disk state.
+
+    Surfaced by ``ClaudeConfig.decisions_diff`` so the CLI can show a
+    unified diff before clobbering content with ``--force``.
+
+    @field dest      Relative path (under ``src_dir``) of the file.
+    @field kind      One of "new", "same", "changed".
+    @field unified   The ``difflib.unified_diff`` output. Empty for "same"
+                     and "new" (callers can show the new content via
+                     ``new_content``).
+    @field new_content   The proposed file content.
+    @field old_content   The current on-disk content (empty for "new").
+    """
+
+    dest: str
+    kind: str
+    unified: str = ""
+    new_content: str = ""
+    old_content: str = ""
+
+
+@dataclass(frozen=True)
+class DecisionsDiffReport:
+    pack: str
+    diffs: list[DecisionDiff] = field(default_factory=list)
+
+    @property
+    def has_changes(self) -> bool:
+        return any(d.kind in {"new", "changed"} for d in self.diffs)
+
+    def summary(self) -> str:
+        new = sum(1 for d in self.diffs if d.kind == "new")
+        changed = sum(1 for d in self.diffs if d.kind == "changed")
+        same = sum(1 for d in self.diffs if d.kind == "same")
+        parts = []
+        if new:
+            parts.append(f"{new} new")
+        if changed:
+            parts.append(f"{changed} changed")
+        if same:
+            parts.append(f"{same} same")
+        return f"pack {self.pack}: " + ("; ".join(parts) if parts else "no files")
+
+
+@dataclass(frozen=True)
 class RepairAction:
     kind: str
     target: Path
@@ -2691,6 +2737,72 @@ class ClaudeConfig:
                 f"pack '{name}': invalid manifest.json: {e.msg}"
             ) from e
         return self._build_pack(data, pack_dir)
+
+    def decisions_diff(self, name: str) -> DecisionsDiffReport:
+        """Return per-file diffs between a pack and the current ``src_dir``.
+
+        Used by the CLI to show a unified diff before clobbering files
+        with ``decisions apply --force``. Read-only: never touches disk.
+
+        @param name pack identifier (matches a directory under the
+                    bundled decisions root).
+        @return DecisionsDiffReport with one DecisionDiff per pack file.
+        """
+        import difflib
+
+        pack = self.decisions_show(name)
+        root = self._decisions_root() / name
+        diffs: list[DecisionDiff] = []
+        for f in pack.files:
+            src = root / f.src
+            if not src.is_file():
+                raise ConfigError(f"pack '{name}': missing source file {f.src}")
+            new_bytes = src.read_bytes()
+            target = self.src_dir / f.dest
+            if not target.exists():
+                diffs.append(
+                    DecisionDiff(
+                        dest=f.dest,
+                        kind="new",
+                        unified="",
+                        new_content=new_bytes.decode("utf-8", errors="replace"),
+                        old_content="",
+                    )
+                )
+                continue
+            old_bytes = target.read_bytes()
+            if old_bytes == new_bytes:
+                diffs.append(
+                    DecisionDiff(
+                        dest=f.dest,
+                        kind="same",
+                        unified="",
+                        new_content=new_bytes.decode("utf-8", errors="replace"),
+                        old_content=old_bytes.decode("utf-8", errors="replace"),
+                    )
+                )
+                continue
+            old_text = old_bytes.decode("utf-8", errors="replace").splitlines(keepends=True)
+            new_text = new_bytes.decode("utf-8", errors="replace").splitlines(keepends=True)
+            unified = "".join(
+                difflib.unified_diff(
+                    old_text,
+                    new_text,
+                    fromfile=f"a/{f.dest}",
+                    tofile=f"b/{f.dest}",
+                    n=3,
+                )
+            )
+            diffs.append(
+                DecisionDiff(
+                    dest=f.dest,
+                    kind="changed",
+                    unified=unified,
+                    new_content="".join(new_text),
+                    old_content="".join(old_text),
+                )
+            )
+        return DecisionsDiffReport(pack=name, diffs=diffs)
 
     def decisions_apply(
         self,

@@ -604,6 +604,22 @@ def main(argv: list[str] | None = None) -> int:
                     print(pack.readme.rstrip())
                 return 0
             if args.decisions_cmd == "apply":
+                # SPEC C4: when --force is requested on a TTY (and the
+                # user hasn't pre-confirmed via --yes), show the diff
+                # first and prompt before clobbering anything.
+                if args.force and not args.yes and sys.stdin.isatty() and not args.dry_run:
+                    diff_report = cfg.decisions_diff(args.name)
+                    if diff_report.has_changes:
+                        print(diff_report.summary())
+                        for d in diff_report.diffs:
+                            if d.kind == "changed":
+                                print(f"\n--- diff for {d.dest} ---")
+                                print(d.unified.rstrip() or "(no textual diff)")
+                            elif d.kind == "new":
+                                print(f"\n--- new file {d.dest} ---")
+                        if not prompter("Apply these changes? [y/N]", default=False):
+                            print("aborted by user")
+                            return 1
                 apply_report = cfg.decisions_apply(
                     args.name, force=args.force, dry_run=args.dry_run
                 )

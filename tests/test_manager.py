@@ -903,6 +903,37 @@ def test_decisions_apply_force_overwrites(cfg: ClaudeConfig) -> None:
     assert not r2.skipped
 
 
+def test_decisions_diff_on_clean_target_shows_all_new(cfg: ClaudeConfig) -> None:
+    """No prior apply: every file in the pack reports kind='new'."""
+    r = cfg.decisions_diff("script-generation-pattern")
+    assert r.pack == "script-generation-pattern"
+    assert r.diffs and all(d.kind == "new" for d in r.diffs)
+    assert r.has_changes
+
+
+def test_decisions_diff_after_apply_shows_same(cfg: ClaudeConfig) -> None:
+    """After applying, the same diff sees no changes (all kind='same')."""
+    cfg.decisions_apply("script-generation-pattern")
+    r = cfg.decisions_diff("script-generation-pattern")
+    assert all(d.kind == "same" for d in r.diffs)
+    assert not r.has_changes
+
+
+def test_decisions_diff_detects_local_edit(cfg: ClaudeConfig) -> None:
+    """Local edit after apply -> diff reports kind='changed' with unified."""
+    cfg.decisions_apply("script-generation-pattern")
+    target = cfg.src_dir / "commands" / "generate-via-script.md"
+    target.write_text(target.read_text(encoding="utf-8") + "\nLOCAL EDIT", encoding="utf-8")
+    r = cfg.decisions_diff("script-generation-pattern")
+    changed = [d for d in r.diffs if d.kind == "changed"]
+    assert changed and "LOCAL EDIT" in changed[0].unified
+
+
+def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError):
+        cfg.decisions_diff("does-not-exist")
+
+
 def test_decisions_apply_dry_run_writes_nothing(cfg: ClaudeConfig) -> None:
     r = cfg.decisions_apply("script-generation-pattern", dry_run=True)
     assert r.dry_run
