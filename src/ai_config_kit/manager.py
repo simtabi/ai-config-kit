@@ -1467,7 +1467,11 @@ class ClaudeConfig:
 
     # ---- install ------------------------------------------------------
 
-    def install(self, dry_run: bool = False) -> InstallReport:
+    def install(
+        self,
+        dry_run: bool = False,
+        only: Iterable[str] | None = None,
+    ) -> InstallReport:
         """Symlink src_dir/* into target_base/ at matching relative paths.
 
         Passes:
@@ -1477,6 +1481,12 @@ class ClaudeConfig:
            dir already resolves into src_dir (reachable via a dir symlink).
         3. Host-overlay pass: ``hosts/<current-host>/*`` installs into target
            at the relative path *without* the ``hosts/<host>/`` prefix.
+
+        @param only Iterable of top-level names to restrict the install to
+            (e.g., ``{"commands", "agents"}``). When set: only matching
+            dir symlinks + only files whose first relative component is
+            in the set get installed. Host overlays + vendor global writes
+            still happen. ``None`` (default) installs everything.
         """
         if not self.src_dir.is_dir():
             raise ConfigError(
@@ -1485,11 +1495,17 @@ class ClaudeConfig:
             )
         self._target_base.mkdir(parents=True, exist_ok=True)
 
+        only_set: frozenset[str] | None = frozenset(only) if only is not None else None
+        if only_set is not None and not only_set:
+            raise ConfigError("install(only=...) requires at least one name")
+
         links = dirs = correct = backed_up = skipped = overlays = secrets = 0
 
         # Pass 1: directory symlinks
         for src in self._dirs_to_symlink():
             rel = src.relative_to(self.src_dir)
+            if only_set is not None and src.name not in only_set:
+                continue
             target = self._target_base / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             if self._is_correct_link(target, src):
@@ -1511,6 +1527,14 @@ class ClaudeConfig:
                 secrets += 1
                 continue
             rel = src.relative_to(self.src_dir)
+            # `--only`: skip files whose top-level component isn't in the
+            # allowlist. Top-level files (no parent dir under src) get the
+            # synthetic ".root" bucket so callers can include them via
+            # `only={".root", "commands"}` if they want.
+            if only_set is not None:
+                top = rel.parts[0] if len(rel.parts) > 1 else ".root"
+                if top not in only_set:
+                    continue
             # Guard: never link files under projects/<slug>/ except memory/
             if self._is_disallowed_project_path(rel):
                 self._warn(

@@ -934,6 +934,35 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- selective install (Phase F) -----------------------------------------
+
+
+def test_install_only_restricts_dir_symlinks(cfg: ClaudeConfig) -> None:
+    """install(only={"commands"}) creates only the commands dir symlink."""
+    (cfg.src_dir / "commands").mkdir(parents=True, exist_ok=True)
+    (cfg.src_dir / "commands" / "foo.md").write_text("x", encoding="utf-8")
+    (cfg.src_dir / "agents").mkdir(parents=True, exist_ok=True)
+    (cfg.src_dir / "agents" / "bar.md").write_text("y", encoding="utf-8")
+
+    cfg.install(only={"commands"})
+    assert (cfg.target_base / "commands").is_symlink()
+    assert not (cfg.target_base / "agents").exists()
+
+
+def test_install_only_empty_set_raises(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError, match="at least one name"):
+        cfg.install(only=[])
+
+
+def test_install_only_none_installs_all(cfg: ClaudeConfig) -> None:
+    """Default install behaviour is unchanged when only=None."""
+    (cfg.src_dir / "commands").mkdir(parents=True, exist_ok=True)
+    (cfg.src_dir / "agents").mkdir(parents=True, exist_ok=True)
+    cfg.install()
+    assert (cfg.target_base / "commands").is_symlink()
+    assert (cfg.target_base / "agents").is_symlink()
+
+
 # --- audit log (Phase G) --------------------------------------------------
 
 

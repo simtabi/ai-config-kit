@@ -174,6 +174,15 @@ def _build_parser() -> argparse.ArgumentParser:
     # install
     p_install = sub.add_parser("install", help="Symlink content into ~/.claude/.")
     p_install.add_argument("--dry-run", action="store_true")
+    p_install.add_argument(
+        "--only",
+        metavar="NAME[,NAME...]",
+        default=None,
+        help=(
+            "Restrict install to these top-level names "
+            "(e.g., --only commands,agents). Repeatable comma-separated list."
+        ),
+    )
 
     # compose-agents-md (synthesize AGENTS.md from content dir)
     p_compose = sub.add_parser(
@@ -491,7 +500,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.cmd == "install":
-            install_report = cfg.install(dry_run=args.dry_run)
+            only = None
+            if args.only:
+                only = [n.strip() for n in args.only.split(",") if n.strip()]
+            install_report = cfg.install(dry_run=args.dry_run, only=only)
             print(("[dry-run] " if args.dry_run else "") + install_report.summary())
             return 0
 
