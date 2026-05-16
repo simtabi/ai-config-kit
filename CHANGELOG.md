@@ -6,6 +6,62 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-16
+
+### Project rename
+
+- GitHub repo: `simtabi/claude-configs` → `simtabi/ai-configurator`
+  → `simtabi/ai-config-kit` (this is final).
+- PyPI dist: `ai-configurator` → `aicfg` → `ai-config-kit` (this is final).
+- CLI binary, Python module, all import paths: `ai-configurator` /
+  `ai_configurator` → `ai-config-kit` / `ai_config_kit`.
+- All `pip install ai-configurator` invocations in docs become
+  `pip install ai-config-kit`.
+
+### Added — SPEC §4 phases
+
+- **Phase A** — `settings validate`: lightweight allowlist + shape
+  validation of `<src_dir>/settings.json`. Forward-compatible
+  warnings for unrecognised keys.
+- **Phase B** — `decisions install <https-url>`: fetch + extract
+  + apply a community/private decision pack from a tarball.
+  HTTPS-only, 5MB cap, optional `--sha256` verification before
+  extract, path-traversal guard, audit-logged.
+- **Phase C** — `memory clean --older-than DAYS`: prune project
+  memory dirs older than the freshness threshold. Dry-run by
+  default; `--apply` deletes and audits.
+- **Phase D** — `settings migrate`: framework for schema-drift
+  migrations. v0.5 ships an empty migration table; future schema
+  drift gets a one-entry change.
+- **Phase F** — `install --only NAME[,NAME...]`: restrict install
+  to specific top-level entries (e.g., `--only commands,agents`).
+- **Phase G** — JSONL audit log: every mutating verb appends an
+  event to `<content_dir>.parent/audit.log` with `ts`, `event`,
+  `content_dir`, `target`, and per-event fields.
+
+### Added — SPEC §5 issues closed
+
+- **C2** — `--json` output on read-only commands: `status`,
+  `doctor`, `validate`, `decisions list/show` now emit a single
+  JSON document via the new `.to_json_dict()` methods.
+- **C3** — `bootstrap --remote URL` validated against a transport
+  allowlist (https / http / ssh / git / `git@` / file) and a
+  shell-metachar blocklist before being passed to git.
+- **C4** — `decisions apply --force` on a TTY shows a unified diff
+  + y/N prompt before clobbering files. `--yes` / `--dry-run` /
+  non-tty bypass.
+
+### Changed
+
+- Node.js 20-deprecated actions bumped past the 2026-06-02 cutoff.
+- CodeQL workflow added (weekly + push/PR scan).
+- README badges (CI, PyPI, Python, license).
+- Repository security toggles enabled.
+
+### Tests
+
+- 241 → 276 (+35 across the session).
+
 ## [0.4.2] - 2026-05-15
 
 ### Added: `capacity` verb + `ClaudeConfig.capacity_check` Python API
