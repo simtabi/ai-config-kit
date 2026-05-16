@@ -288,6 +288,51 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Actually write. Default is dry-run.",
     )
 
+    # profiles (Claude Code permission profiles)
+    p_profiles = sub.add_parser(
+        "profiles",
+        help=(
+            "Switch Claude Code permission profiles "
+            "(python / laravel / node / go / mixed)."
+        ),
+    )
+    prof_sub = p_profiles.add_subparsers(dest="profiles_cmd", required=True)
+    prof_sub.add_parser(
+        "list",
+        help="List built-in profiles + their summaries.",
+    )
+    p_prof_show = prof_sub.add_parser(
+        "show",
+        help="Print a resolved profile's settings JSON.",
+    )
+    p_prof_show.add_argument(
+        "name",
+        nargs="?",
+        default=None,
+        help="Profile name (default: mixed).",
+    )
+    p_prof_apply = prof_sub.add_parser(
+        "apply",
+        help="Write a profile to settings.json. Dry-run unless --apply.",
+    )
+    p_prof_apply.add_argument(
+        "name",
+        nargs="?",
+        default=None,
+        help="Profile name (default: mixed).",
+    )
+    p_prof_apply.add_argument(
+        "--scope",
+        choices=["project", "global"],
+        default="project",
+        help="Where to write: project (<src_dir>/settings.json, default) or global (~/.claude/settings.json).",
+    )
+    p_prof_apply.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually write. Default is dry-run.",
+    )
+
     # status / doctor / validate
     sub.add_parser("status", help="Tracked + untracked + git state.")
     p_doctor = sub.add_parser("doctor", help="Verify symlink health.")
@@ -624,6 +669,27 @@ def main(argv: list[str] | None = None) -> int:
             if args.settings_cmd == "migrate":
                 sm_report = cfg.settings_migrate(dry_run=not args.apply)
                 print(sm_report.summary())
+                return 0
+
+        if args.cmd == "profiles":
+            if args.profiles_cmd == "list":
+                pl_report = cfg.profiles_list()
+                if args.json:
+                    print(json.dumps(pl_report.to_json_dict(), indent=2))
+                else:
+                    print(pl_report.summary())
+                return 0
+            if args.profiles_cmd == "show":
+                resolved = cfg.profiles_show(args.name)
+                # Strip _meta from CLI output: it's internal-only.
+                payload = {k: v for k, v in resolved.items() if k != "_meta"}
+                print(json.dumps(payload, indent=2))
+                return 0
+            if args.profiles_cmd == "apply":
+                pa_report = cfg.profiles_apply(
+                    args.name, scope=args.scope, dry_run=not args.apply
+                )
+                print(pa_report.summary())
                 return 0
 
         if args.cmd == "memory" and args.memory_cmd == "clean":

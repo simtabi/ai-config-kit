@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "name": "go",
+    "summary": "Go project profile: go toolchain, gofmt/goimports, golangci-lint, common module + test commands. Extends `global` baseline.",
+    "scope_hint": "project",
+    "extends": ["global"]
+  },
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write",
+      "MultiEdit",
+
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git restore:*)",
+      "Bash(git pull:*)",
+      "Bash(git push)",
+      "Bash(git push origin:*)",
+      "Bash(git push --set-upstream:*)",
+      "Bash(git push -u:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git revert:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git init:*)",
+      "Bash(git tag:*)",
+
+      "Bash(gh pr create:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(gh workflow run:*)",
+
+      "Bash(go:*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(go run:*)",
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(go install:*)",
+      "Bash(go vet:*)",
+      "Bash(go env:*)",
+      "Bash(go work:*)",
+      "Bash(go tool:*)",
+      "Bash(go generate:*)",
+      "Bash(go doc:*)",
+      "Bash(go list:*)",
+
+      "Bash(gofmt:*)",
+      "Bash(goimports:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(staticcheck:*)",
+      "Bash(gosec:*)",
+      "Bash(govulncheck:*)",
+      "Bash(gotestsum:*)",
+      "Bash(go test -race:*)",
+      "Bash(go test -cover:*)",
+      "Bash(go test -bench:*)",
+
+      "Bash(make:*)",
+      "Bash(mage:*)",
+      "Bash(task:*)",
+      "Bash(./scripts/*:*)",
+      "Bash(bash scripts/*:*)",
+
+      "Bash(pre-commit:*)",
+      "Bash(shellcheck:*)",
+      "Bash(detect-secrets:*)",
+      "Bash(gitleaks:*)",
+
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker compose up:*)",
+      "Bash(docker compose down:*)",
+      "Bash(docker compose build:*)",
+      "Bash(docker compose exec:*)",
+
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(ln:*)",
+      "Bash(chmod:*)",
+      "Bash(tar:*)",
+      "Bash(unzip:*)",
+      "Bash(zip:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf .git:*)",
+      "Bash(rm -rf .git)",
+      "Bash(rm -rf vendor:*)",
+
+      "Bash(goreleaser publish:*)",
+      "Bash(goreleaser release:*)",
+
+      "Bash(gh pr merge --auto:*)"
+    ]
+  }
+}

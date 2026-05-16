@@ -934,6 +934,97 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- permission profiles -------------------------------------------------
+
+
+def test_profiles_list_contains_built_ins(cfg: ClaudeConfig) -> None:
+    r = cfg.profiles_list()
+    names = {p.name for p in r.profiles}
+    assert {"global", "python", "laravel", "node", "go", "mixed"}.issubset(names)
+    assert r.default == "mixed"
+
+
+def test_profiles_list_default_mixed(cfg: ClaudeConfig) -> None:
+    r = cfg.profiles_list()
+    assert r.default == "mixed"
+
+
+def test_profiles_show_default_is_mixed(cfg: ClaudeConfig) -> None:
+    resolved = cfg.profiles_show()
+    assert resolved["_meta"]["name"] == "mixed"
+    assert "permissions" in resolved
+    allow = resolved["permissions"]["allow"]
+    # Python AND PHP AND JS AND Go should all appear in mixed.
+    assert any("python" in a.lower() for a in allow)
+    assert any("composer" in a.lower() or "php" in a.lower() for a in allow)
+    assert any("npm" in a.lower() or "node" in a.lower() for a in allow)
+    assert any(a.startswith("Bash(go") or "gofmt" in a for a in allow)
+
+
+def test_profiles_show_merges_extends_chain(cfg: ClaudeConfig) -> None:
+    """python profile extends global; final allow should include both layers."""
+    py = cfg.profiles_show("python")
+    allow = py["permissions"]["allow"]
+    # global baseline tools
+    assert "Read" in allow
+    assert "Bash(rg:*)" in allow
+    # python-specific tools
+    assert "Bash(pytest:*)" in allow
+    assert "Bash(mypy:*)" in allow
+    # global denies merge in too
+    deny = py["permissions"]["deny"]
+    assert "Bash(sudo:*)" in deny
+
+
+def test_profiles_show_unknown_raises(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError, match="unknown profile"):
+        cfg.profiles_show("does-not-exist")
+
+
+def test_profiles_show_deduplicates_allow_entries(cfg: ClaudeConfig) -> None:
+    """Mixed pulls from many parents; allow shouldn't have dupes."""
+    m = cfg.profiles_show("mixed")
+    allow = m["permissions"]["allow"]
+    assert len(allow) == len(set(allow)), "allow list should be de-duplicated"
+
+
+def test_profiles_apply_dry_run_does_not_write(cfg: ClaudeConfig) -> None:
+    target = cfg.src_dir / "settings.json"
+    r = cfg.profiles_apply("python", scope="project", dry_run=True)
+    assert r.dry_run
+    assert r.target_path == target
+    assert not target.is_file()
+    assert r.backed_up is None
+
+
+def test_profiles_apply_writes_settings_json(cfg: ClaudeConfig) -> None:
+    target = cfg.src_dir / "settings.json"
+    r = cfg.profiles_apply("python", scope="project", dry_run=False)
+    assert not r.dry_run
+    assert target.is_file()
+    body = json.loads(target.read_text(encoding="utf-8"))
+    # _meta must not leak into the on-disk file.
+    assert "_meta" not in body
+    assert "permissions" in body
+    assert "Bash(pytest:*)" in body["permissions"]["allow"]
+
+
+def test_profiles_apply_backs_up_existing(cfg: ClaudeConfig) -> None:
+    target = cfg.src_dir / "settings.json"
+    cfg.src_dir.mkdir(parents=True, exist_ok=True)
+    target.write_text('{"permissions":{"allow":["Read"]}}', encoding="utf-8")
+    r = cfg.profiles_apply("python", scope="project", dry_run=False)
+    assert r.backed_up is not None
+    assert r.backed_up.is_file()
+    backup_body = json.loads(r.backed_up.read_text(encoding="utf-8"))
+    assert backup_body["permissions"]["allow"] == ["Read"]
+
+
+def test_profiles_apply_invalid_scope_raises(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError, match="scope must be"):
+        cfg.profiles_apply("python", scope="random")
+
+
 # --- settings schema + migrate (Phases A + D) ----------------------------
 
 

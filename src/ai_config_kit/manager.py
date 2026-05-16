@@ -492,6 +492,66 @@ from .decisions import (  # noqa: E402
     DecisionsListReport,
 )
 
+# Default profile when the user runs `profiles apply` with no name.
+# "mixed" combines Python + PHP + JS + Go + network diagnostics, which
+# matches how most contributors actually work day-to-day.
+DEFAULT_PROFILE_NAME = "mixed"
+
+
+@dataclass(frozen=True)
+class ProfilesListEntry:
+    """One built-in permission profile, surfaced by ``profiles_list``."""
+
+    name: str
+    summary: str
+    scope_hint: str
+    extends: list[str] = field(default_factory=list)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "summary": self.summary,
+            "scope_hint": self.scope_hint,
+            "extends": list(self.extends),
+        }
+
+
+@dataclass(frozen=True)
+class ProfilesListReport:
+    profiles: list[ProfilesListEntry] = field(default_factory=list)
+    default: str = DEFAULT_PROFILE_NAME
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "default": self.default,
+            "profiles": [p.to_json_dict() for p in self.profiles],
+        }
+
+    def summary(self) -> str:
+        lines = [f"{len(self.profiles)} profile(s) (default: {self.default}):"]
+        for p in self.profiles:
+            marker = " *" if p.name == self.default else "  "
+            lines.append(f"{marker}{p.name:10s} [{p.scope_hint}] {p.summary[:80]}")
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class ProfilesApplyReport:
+    """Outcome of ``profiles_apply``."""
+
+    name: str
+    target_path: Path
+    backed_up: Path | None
+    dry_run: bool
+
+    def summary(self) -> str:
+        prefix = "[dry-run] " if self.dry_run else ""
+        verb = "would write" if self.dry_run else "wrote"
+        backup = (
+            f"; backup at {self.backed_up}" if self.backed_up is not None else ""
+        )
+        return f"{prefix}{verb} profile '{self.name}' to {self.target_path}{backup}"
+
 
 @dataclass(frozen=True)
 class SettingsValidateReport:
@@ -3579,6 +3639,170 @@ class ClaudeConfig:
                     )
 
         return ValidationReport(issues=issues, warnings=warnings_)
+
+    # ---- permission profiles (Claude Code settings.json) ---------------
+
+    def _profiles_root(self) -> Any:
+        """Traversable root of the bundled profiles resource dir."""
+        return resources.files("ai_config_kit") / "resources" / "profiles"
+
+    def _load_profile(self, name: str) -> dict[str, Any]:
+        """Return the raw JSON for a named profile.
+
+        @raises ConfigError when the profile doesn't exist.
+        """
+        root = self._profiles_root()
+        path = root / f"{name}.json"
+        if not path.is_file():
+            available = sorted(
+                p.name[:-5]
+                for p in root.iterdir()
+                if p.is_file() and p.name.endswith(".json")
+            )
+            raise ConfigError(
+                f"unknown profile: {name!r}; available: {available}"
+            )
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+        except json.JSONDecodeError as e:
+            raise ConfigError(
+                f"profile {name!r}: invalid JSON at line {e.lineno}: {e.msg}"
+            ) from e
+
+    def profiles_list(self) -> ProfilesListReport:
+        """Enumerate every built-in permission profile."""
+        root = self._profiles_root()
+        entries: list[ProfilesListEntry] = []
+        for p in sorted(root.iterdir(), key=lambda x: x.name):
+            if not (p.is_file() and p.name.endswith(".json")):
+                continue
+            data = self._load_profile(p.name[:-5])
+            meta = data.get("_meta", {})
+            entries.append(
+                ProfilesListEntry(
+                    name=str(meta.get("name", p.name[:-5])),
+                    summary=str(meta.get("summary", "")),
+                    scope_hint=str(meta.get("scope_hint", "project")),
+                    extends=list(meta.get("extends", [])),
+                )
+            )
+        return ProfilesListReport(profiles=entries, default=DEFAULT_PROFILE_NAME)
+
+    def profiles_show(self, name: str | None = None) -> dict[str, Any]:
+        """Return the resolved profile dict (parent profiles merged).
+
+        ``permissions.allow`` and ``permissions.deny`` from every
+        profile in the ``_meta.extends`` chain are union'd; other
+        top-level keys take the deepest profile's value (the named
+        profile wins).
+
+        @param name profile name; ``None`` -> ``DEFAULT_PROFILE_NAME``.
+        @raises ConfigError when the profile doesn't exist.
+        """
+        resolved_name = name or DEFAULT_PROFILE_NAME
+        return self._resolve_profile(resolved_name, seen=set())
+
+    def _resolve_profile(
+        self,
+        name: str,
+        seen: set[str],
+    ) -> dict[str, Any]:
+        """Recursively merge `extends` chain. Detects cycles."""
+        if name in seen:
+            raise ConfigError(
+                f"profile cycle detected involving {name!r}: chain {sorted(seen)}"
+            )
+        seen = seen | {name}
+        data = self._load_profile(name)
+        meta = data.get("_meta", {})
+        extends = list(meta.get("extends", []))
+
+        allow: list[str] = []
+        deny: list[str] = []
+        other: dict[str, Any] = {}
+        for parent in extends:
+            resolved = self._resolve_profile(parent, seen)
+            perms = resolved.get("permissions", {})
+            allow.extend(perms.get("allow", []))
+            deny.extend(perms.get("deny", []))
+            for k, v in resolved.items():
+                if k in {"_meta", "permissions"}:
+                    continue
+                other[k] = v
+
+        # Self
+        perms = data.get("permissions", {})
+        allow.extend(perms.get("allow", []))
+        deny.extend(perms.get("deny", []))
+        for k, v in data.items():
+            if k in {"_meta", "permissions"}:
+                continue
+            other[k] = v
+
+        # De-duplicate while preserving order (Python 3.7+ dict order).
+        return {
+            "_meta": meta,
+            **other,
+            "permissions": {
+                "allow": list(dict.fromkeys(allow)),
+                "deny": list(dict.fromkeys(deny)),
+            },
+        }
+
+    def profiles_apply(
+        self,
+        name: str | None = None,
+        scope: str = "project",
+        dry_run: bool = True,
+    ) -> ProfilesApplyReport:
+        """Write a resolved profile to the appropriate ``settings.json``.
+
+        @param name   profile name; ``None`` -> default.
+        @param scope  "project" -> ``<src_dir>/settings.json``;
+                      "global"  -> ``~/.claude/settings.json``.
+        @param dry_run  no write when True (default).
+        """
+        if scope not in {"project", "global"}:
+            raise ConfigError(f"scope must be 'project' or 'global'; got {scope!r}")
+        resolved = self.profiles_show(name)
+        # Drop the _meta key — Claude Code doesn't read it and
+        # settings.json should stay clean for tooling.
+        payload = {k: v for k, v in resolved.items() if k != "_meta"}
+
+        if scope == "project":
+            target = self.src_dir / "settings.json"
+        else:
+            target = Path.home() / ".claude" / "settings.json"
+        target = target.expanduser().resolve()
+
+        backed_up: Path | None = None
+        if not dry_run:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.is_file():
+                # Backup the existing file before overwriting; same
+                # convention as decisions_apply's overwrite path.
+                backup = target.with_suffix(
+                    target.suffix + ".before-profile"
+                )
+                target.rename(backup)
+                backed_up = backup
+            target.write_text(
+                json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+            )
+            self._audit(
+                "profiles_apply",
+                profile=name or DEFAULT_PROFILE_NAME,
+                scope=scope,
+                target=str(target),
+                backup=str(backed_up) if backed_up else "",
+            )
+
+        return ProfilesApplyReport(
+            name=name or DEFAULT_PROFILE_NAME,
+            target_path=target,
+            backed_up=backed_up,
+            dry_run=dry_run,
+        )
 
     # ---- settings schema (Phase A) ------------------------------------
 
