@@ -562,6 +562,102 @@ class DecisionsApplyReport:
 
 
 @dataclass(frozen=True)
+class SettingsValidateReport:
+    """Outcome of ``settings_validate()`` (SPEC Phase A).
+
+    @field path     The settings.json that was read.
+    @field exists   True when the file was found.
+    @field issues   Validation problems that block a healthy setup.
+    @field warnings Non-blocking concerns (unknown keys, etc.).
+    """
+
+    path: Path
+    exists: bool
+    issues: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return self.exists and not self.issues
+
+    def summary(self) -> str:
+        if not self.exists:
+            return f"settings.json not present at {self.path}"
+        if self.ok and not self.warnings:
+            return f"settings.json ok ({self.path})"
+        parts: list[str] = []
+        if self.issues:
+            parts.append(f"{len(self.issues)} blocker(s):")
+            parts.extend(f"  - {i}" for i in self.issues)
+        if self.warnings:
+            parts.append(f"{len(self.warnings)} warning(s):")
+            parts.extend(f"  - {w}" for w in self.warnings)
+        return "\n".join(parts)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "path": str(self.path),
+            "exists": self.exists,
+            "ok": self.ok,
+            "issues": list(self.issues),
+            "warnings": list(self.warnings),
+        }
+
+
+@dataclass(frozen=True)
+class SettingsMigrateReport:
+    """Outcome of ``settings_migrate()`` (SPEC Phase D).
+
+    @field path     The settings.json that was processed.
+    @field migrations_applied  Per-migration names that fired.
+    @field dry_run  True = no write happened.
+    """
+
+    path: Path
+    migrations_applied: list[str] = field(default_factory=list)
+    dry_run: bool = True
+
+    def summary(self) -> str:
+        prefix = "[dry-run] " if self.dry_run else ""
+        if not self.migrations_applied:
+            return f"{prefix}{self.path}: no migrations needed"
+        verb = "would apply" if self.dry_run else "applied"
+        return (
+            f"{prefix}{self.path}: {verb} "
+            f"{len(self.migrations_applied)} migration(s): "
+            f"{', '.join(self.migrations_applied)}"
+        )
+
+
+# Known top-level keys in Claude Code's settings.json schema. Used by
+# `settings_validate` to warn on unrecognised keys (forward-compatible
+# warning: new versions of Claude Code may add keys not yet in this list).
+_SETTINGS_KNOWN_KEYS: frozenset[str] = frozenset({
+    "$schema",
+    "permissions",       # {allow, ask, deny}
+    "hooks",
+    "env",
+    "model",
+    "theme",
+    "mcpServers",
+    "experimental",
+    "autoUpdaterStatus",
+    "trustedFolders",
+    "ide",
+    "telemetry",
+})
+
+
+# Settings migration table. Each entry is a callable that takes the
+# parsed settings dict, mutates it in place if applicable, and returns
+# True iff a change was made. Keep entries tiny + commutative.
+_SETTINGS_MIGRATIONS: dict[str, Any] = {
+    # Example future entry (no-op today since no legacy keys ship):
+    # "rename_old_to_new": lambda d: _rename_if_present(d, "oldKey", "newKey"),
+}
+
+
+@dataclass(frozen=True)
 class MemoryCleanReport:
     """Outcome of ``memory_clean()`` (SPEC Phase C).
 
@@ -3591,6 +3687,117 @@ class ClaudeConfig:
                     )
 
         return ValidationReport(issues=issues, warnings=warnings_)
+
+    # ---- settings schema (Phase A) ------------------------------------
+
+    @property
+    def settings_path(self) -> Path:
+        """``<src_dir>/settings.json`` — the file Claude Code reads."""
+        return self.src_dir / "settings.json"
+
+    def settings_validate(self) -> SettingsValidateReport:
+        """Validate ``settings.json`` against a baked-in shape.
+
+        Today this is a lightweight check: JSON syntactic validity +
+        top-level key allowlist + a couple of shape assertions on the
+        most common blocks (``permissions``, ``hooks``, ``env``).
+        Doesn't currently fetch Claude Code's upstream JSON Schema —
+        when an authoritative public schema lands at
+        ``json.schemastore.org``, we can swap to ``jsonschema``-based
+        validation behind the same surface.
+        """
+        path = self.settings_path
+        if not path.is_file():
+            return SettingsValidateReport(path=path, exists=False)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            return SettingsValidateReport(
+                path=path,
+                exists=True,
+                issues=[f"invalid JSON: line {e.lineno}: {e.msg}"],
+            )
+        issues: list[str] = []
+        warnings_: list[str] = []
+        if not isinstance(data, dict):
+            issues.append("top-level must be a JSON object")
+            return SettingsValidateReport(
+                path=path, exists=True, issues=issues, warnings=warnings_
+            )
+
+        # Top-level key allowlist (forward-compatible warning).
+        unknown = [k for k in data if k not in _SETTINGS_KNOWN_KEYS]
+        if unknown:
+            warnings_.append(
+                f"unrecognised top-level key(s): {sorted(unknown)} "
+                f"(known: {sorted(_SETTINGS_KNOWN_KEYS)})"
+            )
+
+        # Shape checks on the most common blocks.
+        if "permissions" in data:
+            perms = data["permissions"]
+            if not isinstance(perms, dict):
+                issues.append("permissions must be an object")
+            else:
+                for k in ("allow", "ask", "deny"):
+                    if k in perms and not isinstance(perms[k], list):
+                        issues.append(f"permissions.{k} must be a list")
+        if "hooks" in data and not isinstance(data["hooks"], dict):
+            issues.append("hooks must be an object")
+        if "env" in data and not isinstance(data["env"], dict):
+            issues.append("env must be an object")
+        if "mcpServers" in data and not isinstance(data["mcpServers"], dict):
+            issues.append("mcpServers must be an object")
+
+        return SettingsValidateReport(
+            path=path, exists=True, issues=issues, warnings=warnings_
+        )
+
+    # ---- settings migrations (Phase D) --------------------------------
+
+    def settings_migrate(self, dry_run: bool = True) -> SettingsMigrateReport:
+        """Apply known schema-drift migrations to ``settings.json``.
+
+        Iterates the module-level _SETTINGS_MIGRATIONS table; each
+        entry mutates the parsed dict in place if applicable and
+        returns True iff a change happened. With ``dry_run=False``,
+        the file is rewritten when at least one migration fired.
+
+        v0.1 ships an empty migration table — the framework is the
+        deliverable, so adding a migration in a future release is a
+        one-entry change.
+        """
+        path = self.settings_path
+        if not path.is_file():
+            return SettingsMigrateReport(path=path, dry_run=dry_run)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ConfigError(
+                f"settings.json: invalid JSON at line {e.lineno}: {e.msg}"
+            ) from e
+        if not isinstance(data, dict):
+            raise ConfigError("settings.json: top-level must be a JSON object")
+
+        applied: list[str] = []
+        for name, fn in _SETTINGS_MIGRATIONS.items():
+            try:
+                changed = bool(fn(data))
+            except Exception as e:  # pragma: no cover  (table is empty in v0.1)
+                raise ConfigError(f"settings migration {name!r} raised: {e}") from e
+            if changed:
+                applied.append(name)
+
+        if applied and not dry_run:
+            path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            self._audit(
+                "settings_migrate",
+                migrations=applied,
+            )
+
+        return SettingsMigrateReport(
+            path=path, migrations_applied=applied, dry_run=dry_run
+        )
 
     # ---- memory hygiene (Phase C) -------------------------------------
 

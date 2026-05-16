@@ -934,6 +934,80 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- settings schema + migrate (Phases A + D) ----------------------------
+
+
+def test_settings_validate_missing_file(cfg: ClaudeConfig) -> None:
+    r = cfg.settings_validate()
+    assert not r.exists
+    assert not r.ok
+
+
+def test_settings_validate_ok_minimal(cfg: ClaudeConfig) -> None:
+    cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.settings_path.write_text(
+        json.dumps({"permissions": {"allow": [], "ask": [], "deny": []}}),
+        encoding="utf-8",
+    )
+    r = cfg.settings_validate()
+    assert r.exists
+    assert r.ok
+    assert not r.issues
+
+
+def test_settings_validate_bad_json(cfg: ClaudeConfig) -> None:
+    cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.settings_path.write_text("{not valid", encoding="utf-8")
+    r = cfg.settings_validate()
+    assert r.exists
+    assert not r.ok
+    assert any("invalid JSON" in i for i in r.issues)
+
+
+def test_settings_validate_shape_errors(cfg: ClaudeConfig) -> None:
+    cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.settings_path.write_text(
+        json.dumps(
+            {
+                "permissions": {"allow": "not a list"},  # wrong type
+                "hooks": "also wrong",
+            }
+        ),
+        encoding="utf-8",
+    )
+    r = cfg.settings_validate()
+    assert not r.ok
+    assert any("permissions.allow must be a list" in i for i in r.issues)
+    assert any("hooks must be an object" in i for i in r.issues)
+
+
+def test_settings_validate_warns_on_unknown_keys(cfg: ClaudeConfig) -> None:
+    cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.settings_path.write_text(
+        json.dumps({"flibbertigibbet": True, "permissions": {}}),
+        encoding="utf-8",
+    )
+    r = cfg.settings_validate()
+    assert r.ok  # warnings don't block
+    assert any("unrecognised top-level key" in w for w in r.warnings)
+
+
+def test_settings_migrate_no_migrations_yet(cfg: ClaudeConfig) -> None:
+    """v0.1 ships an empty migration table; migrate is a no-op."""
+    cfg.settings_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg.settings_path.write_text(json.dumps({"permissions": {}}), encoding="utf-8")
+    r = cfg.settings_migrate(dry_run=True)
+    assert r.path == cfg.settings_path
+    assert r.migrations_applied == []
+    assert r.dry_run
+
+
+def test_settings_migrate_missing_file(cfg: ClaudeConfig) -> None:
+    """Missing file returns an empty report without raising."""
+    r = cfg.settings_migrate(dry_run=True)
+    assert r.migrations_applied == []
+
+
 # --- remote packs (Phase B) ----------------------------------------------
 
 

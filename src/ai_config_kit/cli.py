@@ -268,6 +268,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Actually delete. Default is dry-run.",
     )
 
+    # settings (Phase A: validate, Phase D: migrate)
+    p_settings = sub.add_parser(
+        "settings",
+        help="settings.json hygiene: validate schema + apply migrations.",
+    )
+    set_sub = p_settings.add_subparsers(dest="settings_cmd", required=True)
+    set_sub.add_parser(
+        "validate",
+        help="Validate settings.json against the built-in shape (Phase A).",
+    )
+    p_set_migrate = set_sub.add_parser(
+        "migrate",
+        help="Apply known schema-drift migrations to settings.json (Phase D).",
+    )
+    p_set_migrate.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually write. Default is dry-run.",
+    )
+
     # status / doctor / validate
     sub.add_parser("status", help="Tracked + untracked + git state.")
     p_doctor = sub.add_parser("doctor", help="Verify symlink health.")
@@ -592,6 +612,19 @@ def main(argv: list[str] | None = None) -> int:
             cfg.track(args.path)
             _print(f"tracked: {args.path}", args.quiet)
             return 0
+
+        if args.cmd == "settings":
+            if args.settings_cmd == "validate":
+                sv_report = cfg.settings_validate()
+                if args.json:
+                    print(json.dumps(sv_report.to_json_dict(), indent=2))
+                else:
+                    print(sv_report.summary())
+                return 0 if sv_report.ok else 1
+            if args.settings_cmd == "migrate":
+                sm_report = cfg.settings_migrate(dry_run=not args.apply)
+                print(sm_report.summary())
+                return 0
 
         if args.cmd == "memory" and args.memory_cmd == "clean":
             report = cfg.memory_clean(
