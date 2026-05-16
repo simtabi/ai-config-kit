@@ -21,6 +21,7 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -97,6 +98,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "-q", "--quiet",
         action="store_true",
         help="Print only essential output.",
+    )
+    p.add_argument(
+        "--json",
+        action="store_true",
+        help=(
+            "Output a single JSON document on read-only commands "
+            "(status, doctor, validate, list, decisions list/show)."
+        ),
     )
     p.add_argument(
         "-V", "--version",
@@ -580,17 +589,31 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.cmd == "status":
-            print(cfg.status().to_text())
+            status_report = cfg.status()
+            if args.json:
+                print(json.dumps(status_report.to_json_dict(), indent=2))
+            else:
+                print(status_report.to_text())
             return 0
 
         if args.cmd == "doctor":
             doctor_report = cfg.doctor()
-            print(doctor_report.summary())
-            if getattr(args, "heal", False):
-                heal_report = cfg.audit_permissions()
-                print(heal_report.summary())
-                for finding in heal_report.findings:
-                    _print_finding(finding)
+            if args.json:
+                payload = doctor_report.to_json_dict()
+                if getattr(args, "heal", False):
+                    heal_report = cfg.audit_permissions()
+                    payload["heal"] = {
+                        "summary": heal_report.summary(),
+                        "findings": [str(f) for f in heal_report.findings],
+                    }
+                print(json.dumps(payload, indent=2))
+            else:
+                print(doctor_report.summary())
+                if getattr(args, "heal", False):
+                    heal_report = cfg.audit_permissions()
+                    print(heal_report.summary())
+                    for finding in heal_report.findings:
+                        _print_finding(finding)
             return 0 if doctor_report.healthy else 1
 
         if args.cmd == "heal":
@@ -622,7 +645,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "validate":
             val_report = cfg.validate()
-            print(val_report.summary())
+            if args.json:
+                print(json.dumps(val_report.to_json_dict(), indent=2))
+            else:
+                print(val_report.summary())
             return 0 if val_report.ok else 1
 
         if args.cmd == "cleanup":
@@ -646,14 +672,21 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.cmd == "decisions":
             if args.decisions_cmd == "list":
-                print(cfg.decisions_list().summary())
+                dec_list_report = cfg.decisions_list()
+                if args.json:
+                    print(json.dumps(dec_list_report.to_json_dict(), indent=2))
+                else:
+                    print(dec_list_report.summary())
                 return 0
             if args.decisions_cmd == "show":
                 pack = cfg.decisions_show(args.name)
-                print(pack.summary())
-                if pack.readme:
-                    print()
-                    print(pack.readme.rstrip())
+                if args.json:
+                    print(json.dumps(pack.to_json_dict(), indent=2))
+                else:
+                    print(pack.summary())
+                    if pack.readme:
+                        print()
+                        print(pack.readme.rstrip())
                 return 0
             if args.decisions_cmd == "apply":
                 # SPEC C4: when --force is requested on a TTY (and the

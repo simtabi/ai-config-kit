@@ -301,9 +301,9 @@ Status matrix at v0.3.0:
 | # | Where | Issue |
 |---|---|---|
 | C1 | `src/ai_config_kit/manager.py` | The 1500+ line file is dense. Consider extracting `decisions_*` methods to a sibling `decisions.py` module while keeping `ClaudeConfig` as the orchestrator. |
-| C2 | All commands | We don't have a `--json` output mode anywhere. Adding one would let other tools script around `ai-config-kit status` etc. |
-| C3 | `cli.py` | The bootstrap command's `--remote URL` flag accepts arbitrary URLs. Validate it's https:// or git@ before passing to git. |
-| C4 | `decisions apply` | When `--force` is given, doesn't show a diff first. Add a confirm-with-diff for tty users. |
+| C2 | _shipped 2026-05-16_ | `--json` flag wired on status, doctor, validate, decisions list/show. Reports gained `.to_json_dict()`. Mutating verbs stay text-only by design (their side effects are the value, not the report). |
+| C3 | _shipped 2026-05-16_ | `bootstrap --remote URL` validated against a transport allowlist (https/http/ssh/git/git@/file) and shell-metachar blocklist. |
+| C4 | _shipped 2026-05-16_ | `decisions apply --force` on a TTY shows unified diff + y/N prompt before applying. `--yes` / `--dry-run` / non-tty bypass. |
 | C5 | Cross-project | Audit-checklist + agent-loop instructions are duplicated between this SPEC and `get-installer/SPEC.md`. If a third project adopts the pattern, factor into a shared template. |
 | C6 | `tests/` | We test the manager's surface but not the integration with the symlinks-on-real-FS edge cases (e.g., bind-mounted target). Add a few integration tests. |
 

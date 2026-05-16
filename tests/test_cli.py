@@ -76,6 +76,90 @@ def test_status_runs(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None
     assert "Tracked files" in out
 
 
+# --- --json output mode (SPEC C2) -----------------------------------------
+
+
+def test_status_json_outputs_valid_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json as _json
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main([
+        "--content", str(content), "--target", str(target), "--json", "status",
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    doc = _json.loads(out)
+    assert "content_dir" in doc
+    assert "tracked_files" in doc
+    assert isinstance(doc["tracked_files"], list)
+
+
+def test_doctor_json_outputs_healthy_field(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json as _json
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    (content / "claude" / "CLAUDE.md").write_text("x")
+    target.mkdir()
+    # No install -> doctor finds issue, exits 1, but JSON still valid
+    rc = main([
+        "--content", str(content), "--target", str(target), "--json", "doctor",
+    ])
+    assert rc == 1
+    out = capsys.readouterr().out
+    doc = _json.loads(out)
+    assert "healthy" in doc
+    assert doc["healthy"] is False
+    assert isinstance(doc["issues"], list)
+
+
+def test_validate_json_emits_ok_field(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json as _json
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main([
+        "--content", str(content), "--target", str(target), "--json", "validate",
+    ])
+    out = capsys.readouterr().out
+    doc = _json.loads(out)
+    assert "ok" in doc
+    assert "issues" in doc
+    assert "warnings" in doc
+    # rc matches ok semantics:
+    assert (rc == 0) == bool(doc["ok"])
+
+
+def test_decisions_list_json_outputs_packs_array(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import json as _json
+    content = tmp_path / "content"
+    target = tmp_path / "target"
+    (content / "claude").mkdir(parents=True)
+    target.mkdir()
+    rc = main([
+        "--content", str(content), "--target", str(target), "--json",
+        "decisions", "list",
+    ])
+    assert rc == 0
+    out = capsys.readouterr().out
+    doc = _json.loads(out)
+    assert "packs" in doc
+    assert isinstance(doc["packs"], list)
+    assert doc["packs"]  # at least one bundled pack
+    assert "name" in doc["packs"][0]
+
+
 def test_invalid_json_config_exits_two(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

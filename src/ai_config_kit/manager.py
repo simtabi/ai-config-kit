@@ -149,6 +149,9 @@ class DoctorReport:
             return "all symlinks healthy"
         return f"{len(self.issues)} issue(s):\n  " + "\n  ".join(self.issues)
 
+    def to_json_dict(self) -> dict[str, Any]:
+        return {"healthy": self.healthy, "issues": list(self.issues)}
+
 
 @dataclass(frozen=True)
 class StatusReport:
@@ -184,6 +187,17 @@ class StatusReport:
         if self.git_summary:
             lines.append(self.git_summary)
         return "\n".join(lines)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "content_dir": str(self.content_dir),
+            "target_base": str(self.target_base),
+            "hostname": self.hostname,
+            "tracked_files": list(self.tracked_files),
+            "untracked_candidates": list(self.untracked_candidates),
+            "git_clean": self.git_clean,
+            "git_summary": self.git_summary,
+        }
 
 
 @dataclass(frozen=True)
@@ -301,6 +315,13 @@ class ValidationReport:
             lines.append(f"{len(self.warnings)} warning(s):")
             lines.extend(f"  - {w}" for w in self.warnings)
         return "\n".join(lines)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "ok": self.ok,
+            "issues": list(self.issues),
+            "warnings": list(self.warnings),
+        }
 
 
 @dataclass(frozen=True)
@@ -487,10 +508,25 @@ class DecisionPack:
             f"  files ({len(self.files)}):\n{files}"
         )
 
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "version": self.version,
+            "files": [
+                {"src": f.src, "dest": f.dest, "mode": f.mode}
+                for f in self.files
+            ],
+            "readme": self.readme,
+        }
+
 
 @dataclass(frozen=True)
 class DecisionsListReport:
     packs: list[DecisionPack] = field(default_factory=list)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {"packs": [p.to_json_dict() for p in self.packs]}
 
     def summary(self) -> str:
         if not self.packs:
