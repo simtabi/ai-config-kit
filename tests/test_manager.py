@@ -934,6 +934,156 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- remote packs (Phase B) ----------------------------------------------
+
+
+def _make_tarball(tmp_path: Path, manifest: dict, files: dict[str, str]) -> bytes:
+    """Build a gzip tarball with the given manifest + content files. Bytes only."""
+    import io
+    import json as _json
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        manifest_bytes = _json.dumps(manifest).encode("utf-8")
+        m = tarfile.TarInfo(name="manifest.json")
+        m.size = len(manifest_bytes)
+        tar.addfile(m, io.BytesIO(manifest_bytes))
+        for src, content in files.items():
+            data = content.encode("utf-8")
+            info = tarfile.TarInfo(name=src)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def test_decisions_install_rejects_non_https(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError, match="must be https"):
+        cfg.decisions_install("http://example.com/pack.tar.gz")
+
+
+def test_decisions_install_dry_run(cfg: ClaudeConfig) -> None:
+    r = cfg.decisions_install("https://example.com/pack.tar.gz", dry_run=True)
+    assert r.dry_run
+    assert "pack.tar.gz" in r.pack
+
+
+def test_decisions_install_e2e_via_local_url(
+    cfg: ClaudeConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """End-to-end: mock urlopen to return a local tarball; verify files land."""
+    tarball = _make_tarball(
+        tmp_path,
+        manifest={
+            "name": "remote-test-pack",
+            "description": "test",
+            "version": "0.1.0",
+            "files": [{"src": "files/hello.md", "dest": "commands/hello.md"}],
+        },
+        files={"files/hello.md": "# hello\n"},
+    )
+
+    class _FakeResponse:
+        def __init__(self, payload: bytes) -> None:
+            self._payload = payload
+
+        def read(self, n: int) -> bytes:
+            return self._payload[:n]
+
+        def __enter__(self) -> _FakeResponse:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+    def fake_urlopen(req, timeout=30.0):  # type: ignore[no-untyped-def]
+        return _FakeResponse(tarball)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    r = cfg.decisions_install("https://example.com/pack.tar.gz", force=False)
+    assert r.written == ["commands/hello.md"]
+    target = cfg.src_dir / "commands" / "hello.md"
+    assert target.read_text(encoding="utf-8") == "# hello\n"
+
+
+def test_decisions_install_sha256_mismatch(
+    cfg: ClaudeConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wrong sha256 -> ConfigError before extraction."""
+    tarball = _make_tarball(
+        tmp_path,
+        manifest={
+            "name": "x",
+            "description": "x",
+            "version": "0.0.1",
+            "files": [],
+        },
+        files={},
+    )
+
+    class _Resp:
+        def __init__(self, payload: bytes) -> None:
+            self._p = payload
+
+        def read(self, n: int) -> bytes:
+            return self._p[:n]
+
+        def __enter__(self) -> _Resp:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda req, timeout=30.0: _Resp(tarball),
+    )
+    with pytest.raises(ConfigError, match="sha256 mismatch"):
+        cfg.decisions_install(
+            "https://example.com/pack.tar.gz", sha256="00" * 32
+        )
+
+
+def test_decisions_install_rejects_path_traversal(
+    cfg: ClaudeConfig, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tarball containing `../escape` entry is refused."""
+    import io
+    import json as _json
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        m_bytes = _json.dumps({"name": "bad", "files": []}).encode("utf-8")
+        m = tarfile.TarInfo(name="manifest.json")
+        m.size = len(m_bytes)
+        tar.addfile(m, io.BytesIO(m_bytes))
+        bad = tarfile.TarInfo(name="../escape.md")
+        bad.size = 1
+        tar.addfile(bad, io.BytesIO(b"x"))
+
+    class _R:
+        def __init__(self, p: bytes) -> None:
+            self._p = p
+
+        def read(self, n: int) -> bytes:
+            return self._p[:n]
+
+        def __enter__(self) -> _R:
+            return self
+
+        def __exit__(self, *_a: object) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda req, timeout=30.0: _R(buf.getvalue()),
+    )
+    with pytest.raises(ConfigError, match="escapes root"):
+        cfg.decisions_install("https://example.com/bad.tar.gz")
+
+
 # --- memory hygiene (Phase C) --------------------------------------------
 
 

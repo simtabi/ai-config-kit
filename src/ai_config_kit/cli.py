@@ -346,6 +346,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     dec_sub = p_dec.add_subparsers(dest="decisions_cmd", required=True, metavar="ACTION")
     dec_sub.add_parser("list", help="Show all bundled packs.")
+
+    p_dec_install = dec_sub.add_parser(
+        "install",
+        help="Fetch + apply a decision pack from an HTTPS URL (.tar.gz).",
+    )
+    p_dec_install.add_argument("url", type=str, help="HTTPS URL of a .tar.gz pack.")
+    p_dec_install.add_argument(
+        "--sha256",
+        type=str,
+        default=None,
+        help="Hex-encoded sha256 of the tarball. Verified before extraction.",
+    )
+    p_dec_install.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing files in the content dir.",
+    )
+    p_dec_install.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would happen; do not fetch.",
+    )
     p_dec_show = dec_sub.add_parser("show", help="Print a pack's manifest + README.")
     p_dec_show.add_argument("name")
     p_dec_apply = dec_sub.add_parser(
@@ -721,6 +743,29 @@ def main(argv: list[str] | None = None) -> int:
                     if apply_report.skipped:
                         print("  skipped (already present; --force to overwrite):")
                         for f in apply_report.skipped:
+                            print(f"    = {f}")
+                return 0
+
+            if args.decisions_cmd == "install":
+                inst_report = cfg.decisions_install(
+                    args.url,
+                    sha256=args.sha256,
+                    force=args.force,
+                    dry_run=args.dry_run,
+                )
+                print(inst_report.summary())
+                if not args.quiet and not inst_report.dry_run:
+                    if inst_report.written:
+                        print("  written:")
+                        for f in inst_report.written:
+                            print(f"    + {f}")
+                    if inst_report.overwritten:
+                        print("  overwritten:")
+                        for f in inst_report.overwritten:
+                            print(f"    ~ {f}")
+                    if inst_report.skipped:
+                        print("  skipped (already present; --force to overwrite):")
+                        for f in inst_report.skipped:
                             print(f"    = {f}")
                 return 0
 

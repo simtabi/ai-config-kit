@@ -2864,6 +2864,159 @@ class ClaudeConfig:
             packs.append(self._build_pack(data, entry))
         return DecisionsListReport(packs=packs)
 
+    # ---- remote pack installation (Phase B) ---------------------------
+
+    def decisions_install(
+        self,
+        url: str,
+        sha256: str | None = None,
+        force: bool = False,
+        dry_run: bool = False,
+        max_bytes: int = 5 * 1024 * 1024,
+        timeout: float = 30.0,
+    ) -> DecisionsApplyReport:
+        """Fetch a decision pack from an HTTPS URL and apply it.
+
+        The URL must point at a gzip-compressed tarball whose root
+        contains a ``manifest.json`` in the standard pack schema. The
+        tarball is downloaded into a temp dir (size + tls-validated)
+        and extracted; the extracted tree is then treated as a one-off
+        pack-root and passed through the same ``decisions_apply``
+        path as a bundled pack.
+
+        @param url       HTTPS URL of the tarball.
+        @param sha256    optional hex digest. If given, the download is
+                         verified before extraction.
+        @param force     overwrite existing files in src_dir (default no).
+        @param dry_run   print what would happen; don't extract or write.
+        @param max_bytes hard cap on response body (default 5MB).
+        @param timeout   socket timeout (default 30s).
+        @return DecisionsApplyReport — same shape as a local-pack apply.
+        @raises ConfigError on http/ssl/integrity/manifest failures.
+        """
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ConfigError(f"decisions install URL must be https://, got {parsed.scheme}://")
+        if not parsed.netloc:
+            raise ConfigError(f"decisions install URL has no host: {url!r}")
+
+        if dry_run:
+            return DecisionsApplyReport(pack=url, dry_run=True)
+
+        import io
+        import tarfile
+        import tempfile
+        import urllib.request
+
+        # Fetch
+        req = urllib.request.Request(url, headers={"User-Agent": "ai-config-kit"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                buf = resp.read(max_bytes + 1)
+        except (OSError, ValueError) as e:
+            raise ConfigError(f"decisions install: fetch failed: {e}") from e
+        if len(buf) > max_bytes:
+            raise ConfigError(
+                f"decisions install: response exceeds {max_bytes} bytes"
+            )
+
+        # SHA verify
+        if sha256:
+            got = hashlib.sha256(buf).hexdigest()
+            if got.lower() != sha256.lower():
+                raise ConfigError(
+                    f"decisions install: sha256 mismatch (expected {sha256}, got {got})"
+                )
+
+        # Extract to a temp dir; validate manifest at root.
+        with tempfile.TemporaryDirectory(prefix="ai-config-kit-pack-") as tmp:
+            tmp_root = Path(tmp)
+            try:
+                with tarfile.open(fileobj=io.BytesIO(buf), mode="r:gz") as tar:
+                    # Refuse paths that escape the extraction root.
+                    for member in tar.getmembers():
+                        if member.name.startswith("/") or ".." in Path(member.name).parts:
+                            raise ConfigError(
+                                f"decisions install: tarball entry escapes root: {member.name!r}"
+                            )
+                    tar.extractall(tmp_root, filter="data")
+            except tarfile.TarError as e:
+                raise ConfigError(f"decisions install: tar extract failed: {e}") from e
+
+            # Locate manifest. Either at the root, or one-level-down
+            # (common when tarballs include a top-level dir).
+            pack_root = tmp_root
+            if not (pack_root / "manifest.json").is_file():
+                children = [p for p in tmp_root.iterdir() if p.is_dir()]
+                if len(children) == 1 and (children[0] / "manifest.json").is_file():
+                    pack_root = children[0]
+                else:
+                    raise ConfigError(
+                        "decisions install: tarball does not contain manifest.json at root "
+                        "(or single top-level dir)"
+                    )
+
+            data = json.loads((pack_root / "manifest.json").read_text(encoding="utf-8"))
+            name = str(data.get("name", "")) or pack_root.name
+            self.src_dir.mkdir(parents=True, exist_ok=True)
+            pack = self._build_pack(data, pack_root)
+
+            # Pre-flight: refuse if any dest matches a secret pattern.
+            for f in pack.files:
+                if self._matches_secret(Path(f.dest).name):
+                    raise ConfigError(
+                        f"pack '{name}': dest '{f.dest}' matches a secret pattern; "
+                        "refusing to apply"
+                    )
+
+            written: list[str] = []
+            skipped: list[str] = []
+            overwritten: list[str] = []
+            for f in pack.files:
+                src = pack_root / f.src
+                if not src.is_file():
+                    raise ConfigError(f"pack '{name}': missing source file {f.src}")
+                target = self.src_dir / f.dest
+                exists = target.exists()
+                if exists and not force:
+                    skipped.append(f.dest)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(src.read_bytes())
+                if f.mode is not None:
+                    try:
+                        mode_bits = int(f.mode, 8) & 0o7777
+                    except ValueError as e:
+                        raise ConfigError(
+                            f"pack '{name}': invalid mode '{f.mode}' for {f.dest}"
+                        ) from e
+                    with contextlib.suppress(OSError):
+                        target.chmod(mode_bits)
+                if exists:
+                    overwritten.append(f.dest)
+                else:
+                    written.append(f.dest)
+
+            self._audit(
+                "decisions_install",
+                pack=name,
+                url=url,
+                sha256=sha256 or "",
+                force=force,
+                written=len(written),
+                overwritten=len(overwritten),
+                skipped=len(skipped),
+            )
+            return DecisionsApplyReport(
+                pack=name,
+                written=written,
+                skipped=skipped,
+                overwritten=overwritten,
+                dry_run=False,
+            )
+
     def decisions_show(self, name: str) -> DecisionPack:
         """Return the manifest + file list for a single pack."""
         root = self._decisions_root()
