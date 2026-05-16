@@ -6,6 +6,49 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-16
+
+### Added
+
+- **Claude Code permission profiles** (`7cf9cc4`): six built-in
+  profiles ship as JSON resources: `global` (inspection-only
+  baseline), `python`, `laravel`, `node`, `go`, `mixed` (default).
+  Each project profile extends `global`; the resolver unions
+  allow + deny lists and de-duplicates while preserving order.
+
+  New CLI verbs:
+  - `ai-config-kit profiles list [--json]`
+  - `ai-config-kit profiles show [NAME]`
+  - `ai-config-kit profiles apply [NAME] [--scope project|global] [--apply]`
+
+  Library: `ClaudeConfig.profiles_list()`, `profiles_show()`,
+  `profiles_apply()`. Existing `settings.json` is backed up to
+  `.before-profile` before overwrite. Audit-logged event:
+  `profiles_apply`.
+
+  See `docs/profiles.md` for the full design + design principles
+  (deny beats allow, publishing always prompts, global is
+  inspection-only).
+
+- **S3 sync scaffold** (Phase E, Round 3 #18, `9976632`): opt-in
+  `[s3]` extras + `ClaudeConfig.sync_to_s3` skeleton. Dry-run
+  returns; apply raises NotImplementedError pointing at the
+  pending auth-design ADR.
+
+### Changed
+
+- **Refactor C1** (`ada41bb`): decisions data types extracted to
+  `ai_config_kit/decisions.py` (150 lines moved out of
+  manager.py). Public API preserved via re-export.
+
+- **Integration tests** (C6, `4b70c83`): new `tests/test_integration.py`
+  with 8 real-FS symlink scenarios.
+
+- **Shared session-protocol template** (C5, `af07e92`): the
+  duplicated SPEC §"Session protocol" + "Audit checklist" sections
+  now have a canonical source at
+  `docs/session-protocol.template.md`.
+
 ## [0.5.0] - 2026-05-16
 
 ### Project rename
