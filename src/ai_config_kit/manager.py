@@ -650,6 +650,40 @@ _SETTINGS_MIGRATIONS: dict[str, Any] = {
 
 
 @dataclass(frozen=True)
+class S3SyncReport:
+    """Outcome of ``sync_to_s3`` (SPEC Phase E).
+
+    @field target            bucket + key prefix that was synced.
+    @field uploaded          relative paths that landed in the bucket.
+    @field skipped_secrets   paths filtered by the secret-pattern check.
+    @field bytes_transferred bytes uploaded (0 on dry-run).
+    @field dry_run           True = preview only; False = real upload.
+    """
+
+    target: str
+    uploaded: list[str] = field(default_factory=list)
+    skipped_secrets: list[str] = field(default_factory=list)
+    bytes_transferred: int = 0
+    dry_run: bool = True
+
+    def summary(self) -> str:
+        prefix = "[dry-run] " if self.dry_run else ""
+        verb = "would upload" if self.dry_run else "uploaded"
+        bytes_part = (
+            f" ({self.bytes_transferred} bytes)" if not self.dry_run else ""
+        )
+        skip_part = (
+            f"; skipped {len(self.skipped_secrets)} secret(s)"
+            if self.skipped_secrets
+            else ""
+        )
+        return (
+            f"{prefix}{verb} {len(self.uploaded)} file(s) to {self.target}"
+            f"{bytes_part}{skip_part}"
+        )
+
+
+@dataclass(frozen=True)
 class MemoryCleanReport:
     """Outcome of ``memory_clean()`` (SPEC Phase C).
 
@@ -3918,40 +3952,102 @@ class ClaudeConfig:
             path=path, migrations_applied=applied, dry_run=dry_run
         )
 
-    # ---- cross-machine sync via S3 (Phase E — scaffold only) ----------
+    # ---- cross-machine sync via S3 (Phase E) ---------------------------
 
     def sync_to_s3(
         self,
         target: str,
+        profile: str | None = None,
+        endpoint_url: str | None = None,
         dry_run: bool = True,
-    ) -> None:
-        """Push the content dir to an S3-compatible target (SCAFFOLD).
+    ) -> S3SyncReport:
+        """Push the content dir to an S3-compatible target.
 
-        Wired today as a clean opt-in surface; the actual upload is
-        pending an auth-design ADR. Install with ``pip install
-        ai-config-kit[s3]`` to pull boto3 in, then this method will
-        be filled out in v0.6.
+        Per ADR-0001 (docs/adr/0001-s3-auth-design.md):
 
-        @param target  S3 URI: ``s3://bucket/path`` or compatible.
-        @param dry_run keep at default until the implementation lands.
-        @raises ConfigError when boto3 is not installed.
-        @raises NotImplementedError when called with dry_run=False
-            (the auth flow isn't wired yet; we'd rather fail loudly
-            than silently no-op).
+        - boto3's default credential chain (env vars > shared
+          credentials > IAM role > instance metadata).
+        - No implicit profile: caller must set ``AWS_PROFILE`` env
+          var, pass ``profile=NAME``, or set
+          ``AWS_ACCESS_KEY_ID`` + ``AWS_SECRET_ACCESS_KEY`` env vars.
+        - ``endpoint_url`` lets non-AWS S3 (Cloudflare R2, B2,
+          MinIO) work.
+        - Secret-matching files filtered out via ``_is_secret``.
+
+        @param target        ``s3://bucket/key-prefix``.
+        @param profile       optional named profile from ``~/.aws/credentials``.
+        @param endpoint_url  optional non-AWS endpoint.
+        @param dry_run       True (default) = plan; False = upload.
+        @return S3SyncReport
+        @raises ConfigError on missing boto3, missing auth, or bad target.
         """
         try:
-            import boto3  # type: ignore[import-not-found]  # noqa: F401
+            import boto3  # type: ignore[import-not-found]
         except ImportError as e:
             raise ConfigError(
                 "S3 sync requires boto3. Install via: "
                 "pip install 'ai-config-kit[s3]'"
             ) from e
-        if dry_run:
-            return
-        raise NotImplementedError(
-            "S3 sync is pending the auth-design ADR. Until then, use git + "
-            "your existing remote for cross-machine sync. Track Phase E "
-            "(see SPEC §4)."
+
+        if not target.startswith("s3://"):
+            raise ConfigError(
+                f"sync target must be s3://bucket/key-prefix, got {target!r}"
+            )
+
+        if (
+            profile is None
+            and "AWS_PROFILE" not in os.environ
+            and (
+                "AWS_ACCESS_KEY_ID" not in os.environ
+                or "AWS_SECRET_ACCESS_KEY" not in os.environ
+            )
+        ):
+            raise ConfigError(
+                "no AWS auth detected; set AWS_PROFILE, pass profile=NAME, "
+                "or set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY env vars"
+            )
+
+        bucket_and_prefix = target[len("s3://"):]
+        bucket, _, key_prefix = bucket_and_prefix.partition("/")
+        if not bucket:
+            raise ConfigError(f"sync target missing bucket: {target!r}")
+
+        session = (
+            boto3.Session(profile_name=profile) if profile else boto3.Session()
+        )
+        client = session.client("s3", endpoint_url=endpoint_url)
+
+        uploaded: list[str] = []
+        skipped_secrets: list[str] = []
+        bytes_transferred = 0
+        for path in self._files_to_track(include_overlays=True):
+            if self._is_secret(path):
+                skipped_secrets.append(
+                    str(path.relative_to(self.src_dir))
+                )
+                continue
+            rel = path.relative_to(self.src_dir).as_posix()
+            key = f"{key_prefix.rstrip('/')}/{rel}" if key_prefix else rel
+            if not dry_run:
+                client.upload_file(str(path), bucket, key)
+                bytes_transferred += path.stat().st_size
+            uploaded.append(rel)
+
+        if not dry_run:
+            self._audit(
+                "sync_to_s3",
+                target=target,
+                files=len(uploaded),
+                bytes=bytes_transferred,
+                skipped_secrets=len(skipped_secrets),
+            )
+
+        return S3SyncReport(
+            target=target,
+            uploaded=uploaded,
+            skipped_secrets=skipped_secrets,
+            bytes_transferred=bytes_transferred,
+            dry_run=dry_run,
         )
 
     # ---- memory hygiene (Phase C) -------------------------------------

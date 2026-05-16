@@ -288,6 +288,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Actually write. Default is dry-run.",
     )
 
+    # s3-sync (Phase E — S3-compatible upload)
+    p_s3sync = sub.add_parser(
+        "s3-sync",
+        help="Sync the content dir to an S3-compatible target (Phase E).",
+    )
+    p_s3sync.add_argument(
+        "--target",
+        type=str,
+        required=True,
+        help="S3 URI: s3://bucket/key-prefix",
+    )
+    p_s3sync.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Named AWS profile from ~/.aws/credentials.",
+    )
+    p_s3sync.add_argument(
+        "--endpoint-url",
+        type=str,
+        default=None,
+        help="Non-AWS S3-compatible endpoint (R2, B2, MinIO).",
+    )
+    p_s3sync.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually upload. Default is dry-run.",
+    )
+
     # profiles (Claude Code permission profiles)
     p_profiles = sub.add_parser(
         "profiles",
@@ -670,6 +699,20 @@ def main(argv: list[str] | None = None) -> int:
                 sm_report = cfg.settings_migrate(dry_run=not args.apply)
                 print(sm_report.summary())
                 return 0
+
+        if args.cmd == "s3-sync":
+            s3_report = cfg.sync_to_s3(
+                target=args.target,
+                profile=args.profile,
+                endpoint_url=args.endpoint_url,
+                dry_run=not args.apply,
+            )
+            print(s3_report.summary())
+            if not args.quiet and s3_report.skipped_secrets:
+                print("  skipped secrets:")
+                for s in s3_report.skipped_secrets:
+                    print(f"    - {s}")
+            return 0
 
         if args.cmd == "profiles":
             if args.profiles_cmd == "list":
