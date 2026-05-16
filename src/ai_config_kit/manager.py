@@ -526,6 +526,30 @@ class DecisionsApplyReport:
 
 
 @dataclass(frozen=True)
+class MemoryCleanReport:
+    """Outcome of ``memory_clean()`` (SPEC Phase C).
+
+    @field removed    Per-project memory dirs that were deleted.
+    @field kept       Project memory dirs still within the freshness window.
+    @field threshold_days  The ``older_than`` value the caller passed.
+    @field dry_run    True when the caller wanted a preview only.
+    """
+
+    removed: list[Path] = field(default_factory=list)
+    kept: list[Path] = field(default_factory=list)
+    threshold_days: int = 0
+    dry_run: bool = True
+
+    def summary(self) -> str:
+        prefix = "[dry-run] " if self.dry_run else ""
+        verb = "would remove" if self.dry_run else "removed"
+        return (
+            f"{prefix}{verb} {len(self.removed)} project(s) older than "
+            f"{self.threshold_days}d; kept {len(self.kept)}"
+        )
+
+
+@dataclass(frozen=True)
 class DecisionDiff:
     """One pack file's diff against the current on-disk state.
 
@@ -3378,6 +3402,77 @@ class ClaudeConfig:
                     )
 
         return ValidationReport(issues=issues, warnings=warnings_)
+
+    # ---- memory hygiene (Phase C) -------------------------------------
+
+    def memory_clean(
+        self,
+        older_than_days: int = 90,
+        dry_run: bool = True,
+    ) -> MemoryCleanReport:
+        """Prune per-project memory dirs that haven't been touched recently.
+
+        Walks ``<src_dir>/projects/<slug>/memory/`` and removes any whose
+        most-recently-modified file is older than ``older_than_days``.
+        Empty project directories left over after the memory removal
+        are also pruned. Dry-run by default; pass ``dry_run=False`` to
+        actually delete.
+
+        @param older_than_days  freshness threshold in days. Must be > 0.
+        @param dry_run          True = preview only; False = delete.
+        @return MemoryCleanReport
+        """
+        import time
+
+        if older_than_days <= 0:
+            raise ConfigError("older_than_days must be > 0")
+        projects_root = self.src_dir / "projects"
+        if not projects_root.is_dir():
+            return MemoryCleanReport(threshold_days=older_than_days, dry_run=dry_run)
+
+        threshold = time.time() - (older_than_days * 86400)
+        removed: list[Path] = []
+        kept: list[Path] = []
+
+        for slug_dir in sorted(projects_root.iterdir()):
+            if not slug_dir.is_dir() or slug_dir.is_symlink():
+                continue
+            mem = slug_dir / "memory"
+            if not mem.is_dir():
+                continue
+            # Use the newest mtime across the memory tree as the "last
+            # touched" timestamp; falls back to the dir's own mtime if
+            # the tree is empty.
+            newest = mem.stat().st_mtime
+            for p in mem.rglob("*"):
+                try:
+                    newest = max(newest, p.stat().st_mtime)
+                except OSError:
+                    continue
+            if newest >= threshold:
+                kept.append(mem)
+                continue
+            removed.append(mem)
+            if not dry_run:
+                shutil.rmtree(mem)
+                # Prune the slug dir too if it's now empty.
+                # Non-empty (other files under the slug) -> leave it.
+                with contextlib.suppress(OSError):
+                    slug_dir.rmdir()
+
+        if not dry_run and removed:
+            self._audit(
+                "memory_clean",
+                removed=len(removed),
+                kept=len(kept),
+                threshold_days=older_than_days,
+            )
+        return MemoryCleanReport(
+            removed=removed,
+            kept=kept,
+            threshold_days=older_than_days,
+            dry_run=dry_run,
+        )
 
     # ---- bootstrap ----------------------------------------------------
 

@@ -236,6 +236,29 @@ def _build_parser() -> argparse.ArgumentParser:
     p_track = sub.add_parser("track", help="Move a real path into the content dir + symlink back.")
     p_track.add_argument("path", type=Path)
 
+    # memory (Phase C: hygiene for projects/<slug>/memory/)
+    p_memory = sub.add_parser(
+        "memory",
+        help="Memory dir hygiene: prune old projects/<slug>/memory/ trees.",
+    )
+    mem_sub = p_memory.add_subparsers(dest="memory_cmd", required=True)
+    p_mem_clean = mem_sub.add_parser(
+        "clean",
+        help="Prune project memory dirs older than N days. Dry-run unless --apply.",
+    )
+    p_mem_clean.add_argument(
+        "--older-than",
+        type=int,
+        default=90,
+        metavar="DAYS",
+        help="Freshness threshold in days (default: 90).",
+    )
+    p_mem_clean.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually delete. Default is dry-run.",
+    )
+
     # status / doctor / validate
     sub.add_parser("status", help="Tracked + untracked + git state.")
     p_doctor = sub.add_parser("doctor", help="Verify symlink health.")
@@ -537,6 +560,23 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "track":
             cfg.track(args.path)
             _print(f"tracked: {args.path}", args.quiet)
+            return 0
+
+        if args.cmd == "memory" and args.memory_cmd == "clean":
+            report = cfg.memory_clean(
+                older_than_days=args.older_than,
+                dry_run=not args.apply,
+            )
+            print(report.summary())
+            if not args.quiet and report.removed:
+                label = "would remove" if report.dry_run else "removed"
+                print(f"  {label}:")
+                for mem_path in report.removed:
+                    try:
+                        rel = mem_path.relative_to(cfg._content_dir)
+                        print(f"    - {rel}")
+                    except ValueError:
+                        print(f"    - {mem_path}")
             return 0
 
         if args.cmd == "status":

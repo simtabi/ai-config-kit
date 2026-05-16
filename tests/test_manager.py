@@ -934,6 +934,65 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- memory hygiene (Phase C) --------------------------------------------
+
+
+def test_memory_clean_dry_run_lists_old_dirs(cfg: ClaudeConfig) -> None:
+    """A project memory dir mtime'd 100 days ago is reported for removal."""
+    import os
+    import time
+    proj = cfg.src_dir / "projects" / "old-slug" / "memory"
+    proj.mkdir(parents=True, exist_ok=True)
+    (proj / "notes.md").write_text("x", encoding="utf-8")
+    old = time.time() - (100 * 86400)
+    os.utime(proj / "notes.md", (old, old))
+    os.utime(proj, (old, old))
+
+    r = cfg.memory_clean(older_than_days=90, dry_run=True)
+    assert r.dry_run
+    assert any("old-slug" in str(p) for p in r.removed)
+    assert proj.is_dir()  # dry-run: not actually deleted
+
+
+def test_memory_clean_keeps_fresh_dirs(cfg: ClaudeConfig) -> None:
+    """Recently-touched memory dirs are kept."""
+    proj = cfg.src_dir / "projects" / "fresh-slug" / "memory"
+    proj.mkdir(parents=True, exist_ok=True)
+    (proj / "notes.md").write_text("y", encoding="utf-8")  # mtime = now
+
+    r = cfg.memory_clean(older_than_days=90, dry_run=True)
+    assert not any("fresh-slug" in str(p) for p in r.removed)
+    assert any("fresh-slug" in str(p) for p in r.kept)
+
+
+def test_memory_clean_apply_deletes(cfg: ClaudeConfig) -> None:
+    """dry_run=False actually removes the directory."""
+    import os
+    import time
+    proj = cfg.src_dir / "projects" / "stale-slug" / "memory"
+    proj.mkdir(parents=True, exist_ok=True)
+    (proj / "notes.md").write_text("z", encoding="utf-8")
+    old = time.time() - (200 * 86400)
+    os.utime(proj / "notes.md", (old, old))
+    os.utime(proj, (old, old))
+
+    r = cfg.memory_clean(older_than_days=90, dry_run=False)
+    assert not proj.exists()
+    assert r.removed
+
+
+def test_memory_clean_rejects_non_positive_threshold(cfg: ClaudeConfig) -> None:
+    with pytest.raises(ConfigError, match="must be > 0"):
+        cfg.memory_clean(older_than_days=0)
+
+
+def test_memory_clean_returns_empty_when_no_projects_dir(cfg: ClaudeConfig) -> None:
+    """Missing projects/ root is not an error; report just has nothing."""
+    r = cfg.memory_clean(older_than_days=90, dry_run=True)
+    assert r.removed == []
+    assert r.kept == []
+
+
 # --- selective install (Phase F) -----------------------------------------
 
 
