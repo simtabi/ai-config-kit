@@ -6,6 +6,38 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-16
+
+### Added
+
+- **CI + Rust permission profiles** (`2ea7589`): `profiles list` now
+  shows 8 profiles. `ci` is permissive on toolchains but strict on
+  publish + force-push (use inside GitHub Actions / GitLab CI).
+  `rust` covers cargo + rustfmt + clippy + cargo-audit. `mixed`
+  picks up Rust + Ruby toolchains.
+- **`settings.local.json` auto-gitignored** (`2ea7589`): `init` now
+  writes the local-override pattern to the content-dir `.gitignore`
+  so personal overrides don't accidentally land in commits.
+- **Verification docs** (`2ea7589`): `docs/profiles.md` documents
+  the `settings.local.json` merge semantics + the `claude config
+  list` verification command.
+- **S3 sync implementation** (`4f7cb03`, ADR-0001): `ClaudeConfig.sync_to_s3(...)`
+  is now a live upload. boto3's default credential chain, no
+  implicit auth (caller must set AWS_PROFILE, pass profile=NAME,
+  or set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY). Secret-pattern
+  files (.env, *.credentials.json) filtered out. New CLI:
+  `ai-config-kit s3-sync --target s3://... [--profile] [--endpoint-url] [--apply]`.
+- **moto-based tests** for S3 sync (this commit): 9 test cases
+  cover the auth gate, dry-run, real upload via mock, root-prefix,
+  secret filtering, endpoint_url passthrough, and audit-event
+  emission. Adds `moto[s3]>=5.0` + `boto3>=1.34` to `[dev]` extras.
+
+### Architecture decisions
+
+- **ADR-0001** (`docs/adr/0001-s3-auth-design.md`) records the
+  credential-chain decision, the "no implicit auth" gate, and the
+  GitHub Actions OIDC flow for CI.
+
 ## [0.6.0] - 2026-05-16
 
 ### Added
