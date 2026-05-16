@@ -21,6 +21,14 @@ from __future__ import annotations
 
 from importlib import metadata as _md
 
+from .decisions import (
+    DecisionDiff,
+    DecisionFile,
+    DecisionPack,
+    DecisionsApplyReport,
+    DecisionsDiffReport,
+    DecisionsListReport,
+)
 from .manager import (
     BootstrapReport,
     BootstrapStep,
@@ -29,10 +37,6 @@ from .manager import (
     CleanupReport,
     ComposeReport,
     ConfigError,
-    DecisionFile,
-    DecisionPack,
-    DecisionsApplyReport,
-    DecisionsListReport,
     DoctorReport,
     FetchReport,
     HealReport,
@@ -71,9 +75,11 @@ __all__ = [
     "CleanupReport",
     "ComposeReport",
     "ConfigError",
+    "DecisionDiff",
     "DecisionFile",
     "DecisionPack",
     "DecisionsApplyReport",
+    "DecisionsDiffReport",
     "DecisionsListReport",
     "DoctorReport",
     "FetchReport",
