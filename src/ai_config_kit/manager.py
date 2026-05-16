@@ -3037,7 +3037,13 @@ class ClaudeConfig:
                             raise ConfigError(
                                 f"decisions install: tarball entry escapes root: {member.name!r}"
                             )
-                    tar.extractall(tmp_root, filter="data")
+                    # 3.12+ adds an in-stdlib safety filter; pre-3.12
+                    # falls back to the path-traversal pre-check above.
+                    import sys as _sys
+                    if _sys.version_info >= (3, 12):
+                        tar.extractall(tmp_root, filter="data")
+                    else:
+                        tar.extractall(tmp_root)
             except tarfile.TarError as e:
                 raise ConfigError(f"decisions install: tar extract failed: {e}") from e
 
