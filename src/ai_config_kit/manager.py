@@ -1119,6 +1119,45 @@ class ClaudeConfig:
             f"include_history={self._include_history})"
         )
 
+    # ---- audit log (Phase G) -------------------------------------------
+
+    @property
+    def audit_log_path(self) -> Path:
+        """Append-only JSONL audit log for mutating verbs.
+
+        Lives next to ``content_dir`` so it's outside the symlinked tree
+        but still on the same filesystem (the default content_dir lives
+        at ``~/.config/claude-config/content/``, so the log goes to
+        ``~/.config/claude-config/audit.log``).
+        """
+        return self._content_dir.parent / "audit.log"
+
+    def _audit(self, event: str, **fields: Any) -> None:
+        """Append a single JSONL event. Best-effort: never raises.
+
+        Each line is a self-contained JSON object with at minimum
+        ``ts`` (RFC3339 UTC), ``event``, ``content_dir``, ``target``,
+        and the caller's keyword fields. Designed so ``jq`` /
+        ``grep`` over the file is straightforward.
+        """
+        from datetime import datetime, timezone
+
+        record: dict[str, Any] = {
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "event": event,
+            "content_dir": str(self._content_dir),
+            "target": str(self._target_base),
+            **fields,
+        }
+        path = self.audit_log_path
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+        except OSError:
+            # Audit must never block the operation it's recording.
+            return
+
     @classmethod
     def from_config(cls, config_path: Path | str | None = None) -> ClaudeConfig:
         """Load config from JSON. Falls back to defaults when file is absent.
@@ -1543,7 +1582,7 @@ class ClaudeConfig:
                 continue  # missing canonical: surfaced via project_install
             global_writes.append((vendor, str(dest)))
 
-        return InstallReport(
+        report = InstallReport(
             links_created=links,
             dir_links_created=dirs,
             already_correct=correct,
@@ -1553,6 +1592,16 @@ class ClaudeConfig:
             secrets_skipped=secrets,
             global_writes=global_writes,
         )
+        if not dry_run:
+            self._audit(
+                "install",
+                links_created=report.links_created,
+                dir_links_created=report.dir_links_created,
+                already_correct=report.already_correct,
+                real_files_backed_up=report.real_files_backed_up,
+                global_writes=len(report.global_writes),
+            )
+        return report
 
     def _adapter_for(self, vendor: str) -> VendorAdapter | None:
         """Resolve a vendor name to its adapter.
@@ -1841,6 +1890,11 @@ class ClaudeConfig:
                 if backup.exists() and not link.exists():
                     backup.rename(link)
                     restored += 1
+        self._audit(
+            "uninstall",
+            removed=removed,
+            backups_restored=restored,
+        )
         return UninstallReport(removed=removed, backups_restored=restored)
 
     # ---- track --------------------------------------------------------
@@ -1889,6 +1943,11 @@ class ClaudeConfig:
         if state_changed and self._loaded_config_path is not None:
             self.save_config(self._loaded_config_path)
 
+        self._audit(
+            "track",
+            path=str(rel),
+            kind="dir" if dest.is_dir() else "file",
+        )
         return self
 
     # ---- cleanup ------------------------------------------------------
@@ -2859,13 +2918,23 @@ class ClaudeConfig:
             else:
                 written.append(f.dest)
 
-        return DecisionsApplyReport(
+        report = DecisionsApplyReport(
             pack=name,
             written=written,
             skipped=skipped,
             overwritten=overwritten,
             dry_run=dry_run,
         )
+        if not dry_run:
+            self._audit(
+                "decisions_apply",
+                pack=name,
+                force=force,
+                written=len(written),
+                overwritten=len(overwritten),
+                skipped=len(skipped),
+            )
+        return report
 
     def _build_pack(self, data: dict[str, Any], pack_dir: Any) -> DecisionPack:
         files = [

@@ -934,6 +934,44 @@ def test_decisions_diff_unknown_pack_raises(cfg: ClaudeConfig) -> None:
         cfg.decisions_diff("does-not-exist")
 
 
+# --- audit log (Phase G) --------------------------------------------------
+
+
+def test_audit_log_records_install(cfg: ClaudeConfig) -> None:
+    """install() with dry_run=False writes one JSONL entry."""
+    cfg.install(dry_run=False)
+    log = cfg.audit_log_path
+    assert log.is_file()
+    lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line]
+    install_events = [r for r in lines if r["event"] == "install"]
+    assert install_events
+    e = install_events[-1]
+    assert "ts" in e and e["ts"].endswith("Z")
+    assert e["content_dir"] == str(cfg._content_dir)
+
+
+def test_audit_log_skips_install_dry_run(cfg: ClaudeConfig) -> None:
+    """Dry-run install does not emit an audit event."""
+    cfg.install(dry_run=True)
+    log = cfg.audit_log_path
+    if log.is_file():
+        lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line]
+        assert not [r for r in lines if r["event"] == "install"]
+
+
+def test_audit_log_records_decisions_apply(cfg: ClaudeConfig) -> None:
+    """decisions_apply() with dry_run=False writes an event including pack name."""
+    cfg.decisions_apply("script-generation-pattern")
+    log = cfg.audit_log_path
+    lines = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines() if line]
+    events = [r for r in lines if r["event"] == "decisions_apply"]
+    assert events and events[-1]["pack"] == "script-generation-pattern"
+
+
+def test_audit_log_path_lives_next_to_content_dir(cfg: ClaudeConfig) -> None:
+    assert cfg.audit_log_path == cfg._content_dir.parent / "audit.log"
+
+
 def test_decisions_apply_dry_run_writes_nothing(cfg: ClaudeConfig) -> None:
     r = cfg.decisions_apply("script-generation-pattern", dry_run=True)
     assert r.dry_run
