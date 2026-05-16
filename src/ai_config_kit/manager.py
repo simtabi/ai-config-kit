@@ -61,6 +61,36 @@ class ConfigError(Exception):
     """Raised on configuration parse, validation, or environment failure."""
 
 
+# Accepted git-transport prefixes for the bootstrap --remote URL. Keeps
+# whatever lands in `git remote add <url>` to a known shape; rejects
+# shell metacharacters (`;`, `|`, `$`, backticks, newlines).
+_ALLOWED_GIT_URL_PREFIXES: tuple[str, ...] = (
+    "https://", "http://", "ssh://", "git://", "git@", "file://",
+)
+_FORBIDDEN_URL_CHARS: tuple[str, ...] = (";", "|", "&", "$", "`", "\n", "\r", "\t", " ")
+
+
+def _validate_remote_url(url: str) -> None:
+    """Raise ``ConfigError`` if ``url`` doesn't look like a git remote URL.
+
+    Permissive on transport, strict on shape: we accept anything that
+    starts with a known transport prefix and contains no shell
+    metacharacters. We don't try to be a full URL parser.
+    """
+    if not isinstance(url, str) or not url:
+        raise ConfigError("--remote URL must be a non-empty string")
+    if not any(url.startswith(p) for p in _ALLOWED_GIT_URL_PREFIXES):
+        raise ConfigError(
+            f"--remote URL must start with one of {_ALLOWED_GIT_URL_PREFIXES}; "
+            f"got {url!r}"
+        )
+    bad = [c for c in _FORBIDDEN_URL_CHARS if c in url]
+    if bad:
+        raise ConfigError(
+            f"--remote URL contains forbidden character(s) {bad!r}: {url!r}"
+        )
+
+
 @dataclass(frozen=True)
 class InstallReport:
     """Outcome of ``.install()``."""
@@ -3163,6 +3193,12 @@ class ClaudeConfig:
         is already done. Failures stop the sequence and surface in the
         report; later steps are marked skipped.
 
+        @param remote_url validated against an allowlist of git transports
+            (https://, http://, ssh://, git://, git@..., file://) before
+            being passed to git. Rejects shell metacharacters or schemes
+            outside the allowlist to keep `git remote add` from receiving
+            something that could be interpreted unexpectedly downstream.
+
         ``prompt`` is a callable used for confirmation prompts. When
         ``None``, no prompts are issued (non-interactive default). The CLI
         passes a TTY-aware prompter; tests pass a recording stub.
@@ -3172,6 +3208,16 @@ class ClaudeConfig:
         def _step(name: str, ok: bool, detail: str = "", skipped: bool = False) -> bool:
             steps.append(BootstrapStep(name=name, ok=ok, detail=detail, skipped=skipped))
             return ok
+
+        # 0. Pre-flight: validate remote URL shape before any IO. Cheap
+        #    check, but blocks accidents like passing a shell-quoted env
+        #    var that already failed expansion.
+        if remote_url is not None:
+            try:
+                _validate_remote_url(remote_url)
+            except ConfigError as e:
+                _step("remote-url-validation", ok=False, detail=str(e))
+                return BootstrapReport(steps=steps, dry_run=dry_run)
 
         # 1. Validate
         val = self.validate()

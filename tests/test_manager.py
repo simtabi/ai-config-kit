@@ -779,6 +779,35 @@ def test_validate_flags_unwritable_target_parent(
 # --- bootstrap ------------------------------------------------------------
 
 
+def test_bootstrap_rejects_bad_remote_url_scheme(cfg: ClaudeConfig) -> None:
+    """--remote with an unknown transport prefix surfaces as a failed step."""
+    r = cfg.bootstrap(dry_run=True, remote_url="javascript:alert(1)")
+    assert not r.ok
+    bad = [s for s in r.steps if s.name == "remote-url-validation"]
+    assert bad and not bad[0].ok
+
+
+def test_bootstrap_rejects_shell_metachar_in_remote_url(cfg: ClaudeConfig) -> None:
+    """--remote with a shell metacharacter (;, |, $, backtick, …) is refused."""
+    r = cfg.bootstrap(dry_run=True, remote_url="https://example.com/repo;rm -rf /")
+    assert not r.ok
+    bad = [s for s in r.steps if s.name == "remote-url-validation"]
+    assert bad and not bad[0].ok and "forbidden character" in bad[0].detail
+
+
+def test_bootstrap_accepts_known_git_transports(cfg: ClaudeConfig) -> None:
+    """https://, git@..., ssh://, git://, file:// all pass validation."""
+    for url in (
+        "https://github.com/o/r.git",
+        "git@github.com:o/r.git",
+        "ssh://git@github.com/o/r.git",
+        "git://github.com/o/r.git",
+        "file:///tmp/repo.git",
+    ):
+        r = cfg.bootstrap(dry_run=True, remote_url=url)
+        assert not any(s.name == "remote-url-validation" and not s.ok for s in r.steps), url
+
+
 def test_bootstrap_dry_run_runs_all_steps(cfg: ClaudeConfig) -> None:
     r = cfg.bootstrap(dry_run=True)
     assert isinstance(r, BootstrapReport)
