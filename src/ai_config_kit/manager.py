@@ -3691,6 +3691,42 @@ class ClaudeConfig:
             path=path, migrations_applied=applied, dry_run=dry_run
         )
 
+    # ---- cross-machine sync via S3 (Phase E — scaffold only) ----------
+
+    def sync_to_s3(
+        self,
+        target: str,
+        dry_run: bool = True,
+    ) -> None:
+        """Push the content dir to an S3-compatible target (SCAFFOLD).
+
+        Wired today as a clean opt-in surface; the actual upload is
+        pending an auth-design ADR. Install with ``pip install
+        ai-config-kit[s3]`` to pull boto3 in, then this method will
+        be filled out in v0.6.
+
+        @param target  S3 URI: ``s3://bucket/path`` or compatible.
+        @param dry_run keep at default until the implementation lands.
+        @raises ConfigError when boto3 is not installed.
+        @raises NotImplementedError when called with dry_run=False
+            (the auth flow isn't wired yet; we'd rather fail loudly
+            than silently no-op).
+        """
+        try:
+            import boto3  # type: ignore[import-not-found]  # noqa: F401
+        except ImportError as e:
+            raise ConfigError(
+                "S3 sync requires boto3. Install via: "
+                "pip install 'ai-config-kit[s3]'"
+            ) from e
+        if dry_run:
+            return
+        raise NotImplementedError(
+            "S3 sync is pending the auth-design ADR. Until then, use git + "
+            "your existing remote for cross-machine sync. Track Phase E "
+            "(see SPEC §4)."
+        )
+
     # ---- memory hygiene (Phase C) -------------------------------------
 
     def memory_clean(
