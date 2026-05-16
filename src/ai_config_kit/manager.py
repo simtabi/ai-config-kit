@@ -1517,7 +1517,10 @@ class ClaudeConfig:
                 + "\n".join(f"**/{p}" for p in self._secrets)
                 + "\n\n# Local noise\n"
                 + "\n".join(self._ignores)
-                + "\n",
+                + "\n\n# Personal overrides (Claude Code reads both files,\n"
+                + "# settings.local.json wins per-key; never committed):\n"
+                + "settings.local.json\n"
+                + "**/settings.local.json\n",
                 encoding="utf-8",
             )
 

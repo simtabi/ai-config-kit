@@ -20,10 +20,46 @@ de-duplicates while preserving order.
 | `laravel` | project | Composer + artisan + vendor/bin (Pest, PHPUnit, Pint, PHPStan, Rector), Sail. Denies `migrate:fresh` + `db:wipe`. |
 | `node` | project | npm/pnpm/yarn/bun, TS toolchain, framework CLIs (next, vite, astro), Vitest/Playwright. |
 | `go` | project | go toolchain, gofmt/goimports, golangci-lint, govulncheck. |
-| `mixed` | project | **Default.** Everything: Python + PHP + JS + Go + network diagnostics + Docker. |
+| `rust` | project | cargo + rustfmt + clippy + cargo-audit. Denies `cargo publish` + `cargo yank` + `cargo login`. |
+| `ci` | ci | For CI runners (GitHub Actions / GitLab CI). Permissive on toolchains; strict on anything that mutates remote state (denies `gh release create`, `gh repo create`, all publish commands, force-push). |
+| `mixed` | project | **Default.** Everything: Python + PHP + JS + Go + Rust + Ruby + network diagnostics + Docker. |
 
 Every project profile extends `global`, so the baseline read/inspect
 permissions always apply.
+
+## settings.local.json — personal overrides
+
+Claude Code reads both `settings.json` (committed) and
+`settings.local.json` (gitignored) and merges per-key. The local
+file is for personal preferences that shouldn't be shared:
+
+```bash
+# .gitignore (ai-config-kit init adds this for you)
+settings.local.json
+**/settings.local.json
+```
+
+Use cases for local overrides:
+
+- Allow specific commands you trust on YOUR machine but the team
+  doesn't (e.g., `Bash(my-deploy-tool:*)`).
+- Bind a personal API token reference: `"env": {"MY_KEY": "..."}`.
+- Tighter denies than the team default.
+
+Never put secrets in `settings.local.json` either — Claude Code
+treats it as configuration, not a secret store.
+
+## Verifying
+
+After `profiles apply --apply`, confirm the merged effective config:
+
+```bash
+claude config list
+```
+
+This prints the resolved JSON (your profile + any
+`settings.local.json` overrides on top). Look for your profile's
+allow patterns and the global denies you expected.
 
 ## Usage
 

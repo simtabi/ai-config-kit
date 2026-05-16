@@ -80,6 +80,19 @@
       "Bash(golangci-lint:*)",
       "Bash(govulncheck:*)",
 
+      "Bash(cargo:*)",
+      "Bash(rustc:*)",
+      "Bash(rustfmt:*)",
+      "Bash(rustup:*)",
+      "Bash(clippy-driver:*)",
+
+      "Bash(ruby:*)",
+      "Bash(bundle:*)",
+      "Bash(bundle exec:*)",
+      "Bash(rake:*)",
+      "Bash(rspec:*)",
+      "Bash(rubocop:*)",
+
       "Bash(make:*)",
       "Bash(./scripts/*:*)",
       "Bash(bash scripts/*:*)",
@@ -158,6 +171,9 @@
       "Bash(bun publish:*)",
       "Bash(goreleaser publish:*)",
       "Bash(goreleaser release:*)",
+      "Bash(cargo publish:*)",
+      "Bash(cargo yank:*)",
+      "Bash(gem push:*)",
 
       "Bash(gh pr merge --auto:*)",
 
