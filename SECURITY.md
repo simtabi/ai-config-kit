@@ -4,7 +4,7 @@
 
 **Do not file public issues for security reports.** Use either:
 
-- Email: `opensource@simtabi.com` (preferred)
+- Email: `security@simtabi.com` (preferred)
 - GitHub private advisory:
   <https://github.com/simtabi/ai-config-kit/security/advisories/new>
 
