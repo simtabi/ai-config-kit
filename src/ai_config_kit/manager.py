@@ -3982,7 +3982,7 @@ class ClaudeConfig:
         @raises ConfigError on missing boto3, missing auth, or bad target.
         """
         try:
-            import boto3  # type: ignore[import-not-found]
+            import boto3
         except ImportError as e:
             raise ConfigError(
                 "S3 sync requires boto3. Install via: "

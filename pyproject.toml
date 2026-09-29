@@ -83,3 +83,11 @@ ignore = ["E501"]
 python_version = "3.10"
 strict = true
 files = ["src/ai_config_kit"]
+
+# boto3 is optional (the [s3] extra) and ships no type information. Whether it is
+# installed changes the error mypy raises -- import-not-found without it,
+# import-untyped with it -- so an inline ignore naming one code breaks whenever
+# the environment moves. The override covers both.
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
