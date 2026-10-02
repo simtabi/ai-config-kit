@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **ADR-0001 folded into `docs/architecture.md`**: the S3 auth design
+  record moved from `docs/adr/0001-s3-auth-design.md` to the
+  "Why S3 sync uses boto3's credential chain" section of
+  `docs/architecture.md`, text unchanged. Architectural rationale lives
+  in that page; the repository no longer carries a `docs/adr/` tree.
+
 ## [0.7.0] - 2026-05-16
 
 ### Added
