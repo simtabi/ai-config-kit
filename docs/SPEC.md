@@ -131,12 +131,15 @@ broader scope: target any AI coding tool, not just Claude Code.
 
 What's **done**:
 
-1. Core class `ClaudeConfig` with 18 verbs:
+1. Core class `ClaudeConfig` with these verbs (the authoritative list
+   is the CLI in `src/ai_config_kit/cli.py`):
    `bootstrap`, `init`, `install`, `uninstall`, `sync`, `track`,
    `status`, `doctor`, `validate`, `list`, `view`, `cleanup`,
    `repair`, `fetch`, `reconcile`,
    `compose-agents-md`, `project-install`,
-   `decisions {list,show,apply}`.
+   `audit-permissions`, `capacity-check`, `memory-clean`, `sync-to-s3`,
+   `decisions {list,show,diff,install,apply}`,
+   `profiles {list,show,apply}`, `settings {validate,migrate}`.
 2. **13 bundled decision packs** at
    `src/ai_config_kit/resources/decisions/<name>/`. **12
    auto-applied on `init`**, 1 opt-in (`core`):
