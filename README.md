@@ -27,7 +27,7 @@ ai-config-kit bootstrap        # validate + init + install + doctor, one shot
 
 - [Why it exists](#why-it-exists)
 - [Install](#install)
-- [Quick start](#quick-start)
+- [Quick start](#quick-start-guide-and-usage)
 - [Commands at a glance](#commands-at-a-glance)
 - [Decisions: bundled global rules](#decisions-bundled-global-rules)
 - [The fetch command + canonical-file pattern](#the-fetch-command--canonical-file-pattern)
@@ -99,7 +99,9 @@ previously shipped inside this repo at `installer/`; it now lives as
 its own project so other Simtabi tools (and third parties) can vendor
 it. Full design + threat model: <https://github.com/simtabi/get-installer>.
 
-## Quick start (after pip install)
+## Quick start guide and usage
+
+### Getting started
 
 ```bash
 ai-config-kit bootstrap
@@ -110,6 +112,12 @@ safe to re-run on a machine that's already set up. Pass `--push` to
 also commit + push the content dir to its remote, `--remote URL` to
 configure `origin` on a fresh machine, `--dry-run` to see what would
 happen.
+
+To point it at a different content or target directory (CI, an
+ephemeral checkout), set `CLAUDE_CONFIG_CONTENT_DIR` and
+`CLAUDE_CONFIG_TARGET` before running it.
+
+### Usage
 
 Once installed:
 
