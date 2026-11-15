@@ -105,6 +105,10 @@ class InstallReport:
     # Slice 4: per-vendor global-target writes (e.g., ~/.cursor/rules/).
     # Tuples of (vendor, dest_path).
     global_writes: list[tuple[str, str]] = field(default_factory=list)
+    # Placements: content/placements/<rel> linked at <placements_root>/<rel>.
+    placements_linked: int = 0
+    # Tuples of (relative path, reason) for placements install refused.
+    placements_refused: list[tuple[str, str]] = field(default_factory=list)
 
     def summary(self) -> str:
         parts = [
@@ -120,6 +124,10 @@ class InstallReport:
             parts.append(f"{self.secrets_skipped} secret(s) refused")
         if self.global_writes:
             parts.append(f"{len(self.global_writes)} vendor global write(s)")
+        if self.placements_linked:
+            parts.append(f"{self.placements_linked} placement(s)")
+        if self.placements_refused:
+            parts.append(f"{len(self.placements_refused)} placement(s) refused")
         return ", ".join(parts)
 
 
@@ -127,9 +135,13 @@ class InstallReport:
 class UninstallReport:
     removed: int = 0
     backups_restored: int = 0
+    # Subset of ``removed`` that were placements outside target_base.
+    placements_removed: int = 0
 
     def summary(self) -> str:
         parts = [f"removed {self.removed} symlink(s)"]
+        if self.placements_removed:
+            parts.append(f"{self.placements_removed} of them placement(s)")
         if self.backups_restored:
             parts.append(f"restored {self.backups_restored} pre-install backup(s)")
         parts.append("content untouched")
@@ -162,6 +174,10 @@ class StatusReport:
     untracked_candidates: list[str] = field(default_factory=list)
     git_clean: bool = True
     git_summary: str = ""
+    # Placements as (relative path, state); state is one of "linked",
+    # "missing", "foreign" (something else sits there) or "refused".
+    placements: list[tuple[str, str]] = field(default_factory=list)
+    placements_root: Path | None = None
 
     def to_text(self, max_listed: int = 30) -> str:
         lines: list[str] = [
@@ -182,6 +198,12 @@ class StatusReport:
                 lines.append(f"  ... ({extra} more)")
         else:
             lines.append("  (none)")
+        if self.placements:
+            lines.append("")
+            lines.append(f"Placements under {self.placements_root}: {len(self.placements)}")
+            lines.extend(f"  {rel}  [{state}]" for rel, state in self.placements[:max_listed])
+            if len(self.placements) > max_listed:
+                lines.append(f"  ... ({len(self.placements) - max_listed} more)")
         lines.append("")
         lines.append(f"Git: {'clean' if self.git_clean else 'dirty'}")
         if self.git_summary:
@@ -812,6 +834,15 @@ class VendorAdapter:
     global_target: Path | None = None
     project_files: tuple[ProjectFile, ...] = ()
     canonical_source: str | None = None  # filename in content dir, e.g. "AGENTS.md"
+    # File written inside ``global_target``. ``agents.md`` suits vendors
+    # that read every ``*.md`` in a rules directory (cursor, kiro,
+    # continue); vendors that read one named file set it (codex reads
+    # ``AGENTS.md``, gemini reads ``GEMINI.md``).
+    global_filename: str = "agents.md"
+    # Deprecated destinations from earlier releases. ``install`` keeps
+    # refreshing each one that already exists, so a caller relying on the
+    # old path still gets current content, and never creates a new one.
+    legacy_global_files: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1017,6 +1048,12 @@ class ClaudeConfig:
     # installs at <target>/<file> on the matching host only.
     HOST_OVERLAY_DIR: str = "hosts"
 
+    # Sibling of claude/ in the content dir. Layout:
+    #     <content>/placements/<path relative to $HOME>
+    # installs as a symlink at <placements_root>/<that path>
+    # (placements_root defaults to the home directory).
+    PLACEMENTS_DIR: str = "placements"
+
     # Directories under <target> normally written by the harness; excluded
     # from candidate listings and never auto-tracked.
     RUNTIME_DIRS: frozenset[str] = frozenset({
@@ -1073,12 +1110,18 @@ class ClaudeConfig:
     SUPPORTED_VENDORS: ClassVar[tuple[str, ...]] = (
         "claude-code",     # Anthropic Claude Code CLI: ~/.claude/ (global)
         "claude",          # Claude.ai web/desktop: partial (CLAUDE.md sharing)
-        "codex",           # OpenAI Codex CLI: AGENTS.md + ~/.codex/instructions/
+        "codex",           # OpenAI Codex CLI: AGENTS.md + ~/.codex/AGENTS.md
         "cursor",          # Cursor IDE: .cursorrules + ~/.cursor/rules/
         "cline",           # Cline (VS Code extension): .clinerules
         "aider",           # Aider CLI: AGENTS.md
         "windsurf",        # Windsurf IDE: .windsurfrules
         "copilot",         # GitHub Copilot: .github/copilot-instructions.md
+        "gemini",          # Google Gemini CLI: ~/.gemini/GEMINI.md
+        "grok",            # xAI Grok CLI: ~/.grok/AGENTS.md (filename unconfirmed)
+        "junie",           # JetBrains Junie CLI: ~/.junie/AGENTS.md
+        "kiro",            # Kiro: ~/.kiro/steering/*.md
+        "continue",        # Continue: ~/.continue/rules/*.md
+        "opencode",        # opencode: ~/.config/opencode/AGENTS.md
     )
     DEFAULT_VENDORS: ClassVar[tuple[str, ...]] = ("claude-code",)
     VENDOR_STATUS: ClassVar[dict[str, str]] = {
@@ -1090,6 +1133,14 @@ class ClaudeConfig:
         "aider": "current",
         "windsurf": "current",
         "copilot": "current",
+        "gemini": "current",
+        # xAI documents "Global rules in ~/.grok/" without naming the file;
+        # AGENTS.md is the name it reads in every other directory.
+        "grok": "partial",
+        "junie": "current",
+        "kiro": "current",
+        "continue": "current",
+        "opencode": "current",
     }
 
     # Vendor adapters. Each adapter declares how a single AI vendor
@@ -1148,7 +1199,18 @@ class ClaudeConfig:
         "codex": VendorAdapter(
             name="codex",
             status="current",
-            global_target=Path.home() / ".codex" / "instructions",
+            # Codex reads $CODEX_HOME/AGENTS.md (default ~/.codex/AGENTS.md):
+            # https://learn.chatgpt.com/docs/agent-configuration/agents-md
+            # Until 0.5.0 this wrote ~/.codex/instructions/agents.md, which
+            # Codex does not read. That file is still refreshed when it
+            # exists (deprecated; removable from 1.0.0).
+            global_target=Path(
+                os.environ.get("CODEX_HOME") or str(Path.home() / ".codex")
+            ),
+            global_filename="AGENTS.md",
+            legacy_global_files=(
+                Path.home() / ".codex" / "instructions" / "agents.md",
+            ),
             project_files=(
                 # Codex reads AGENTS.md natively (announced by OpenAI 2024+).
                 # We don't write a separate codex-specific project file;
@@ -1171,6 +1233,50 @@ class ClaudeConfig:
             ),
             canonical_source="AGENTS.md",
         ),
+        # Global-only vendors. Each reads one user-level file (or every
+        # *.md in a user-level directory); sources in docs/configuration.md.
+        "gemini": VendorAdapter(
+            name="gemini",
+            status="current",
+            global_target=Path.home() / ".gemini",
+            global_filename="GEMINI.md",
+            canonical_source="AGENTS.md",
+        ),
+        "grok": VendorAdapter(
+            name="grok",
+            status="partial",
+            global_target=Path.home() / ".grok",
+            global_filename="AGENTS.md",
+            canonical_source="AGENTS.md",
+        ),
+        "junie": VendorAdapter(
+            name="junie",
+            status="current",
+            global_target=Path.home() / ".junie",
+            global_filename="AGENTS.md",
+            canonical_source="AGENTS.md",
+        ),
+        "kiro": VendorAdapter(
+            name="kiro",
+            status="current",
+            global_target=Path.home() / ".kiro" / "steering",
+            canonical_source="AGENTS.md",
+        ),
+        "continue": VendorAdapter(
+            name="continue",
+            status="current",
+            global_target=Path.home() / ".continue" / "rules",
+            canonical_source="AGENTS.md",
+        ),
+        "opencode": VendorAdapter(
+            name="opencode",
+            status="current",
+            global_target=Path(
+                os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+            ) / "opencode",
+            global_filename="AGENTS.md",
+            canonical_source="AGENTS.md",
+        ),
     }
 
     # Environment variables consulted between an explicit argument and the
@@ -1178,6 +1284,7 @@ class ClaudeConfig:
     ENV_CONTENT_DIR: str = "CLAUDE_CONFIG_CONTENT_DIR"
     ENV_TARGET_BASE: str = "CLAUDE_CONFIG_TARGET"
     ENV_CONFIG_FILE: str = "CLAUDE_CONFIG_FILE"
+    ENV_PLACEMENTS_ROOT: str = "CLAUDE_CONFIG_PLACEMENTS_ROOT"
 
     # ---- construction -------------------------------------------------
     #
@@ -1200,11 +1307,19 @@ class ClaudeConfig:
         auto_reconcile: bool = True,
         vendors: Iterable[str] | None = None,
         vendor_adapter_overrides: dict[str, VendorAdapter] | None = None,
+        placements_root: Path | str | None = None,
     ) -> None:
         if content_dir is None:
             content_dir = os.environ.get(self.ENV_CONTENT_DIR)
         if target_base is None:
             target_base = os.environ.get(self.ENV_TARGET_BASE)
+        if placements_root is None:
+            placements_root = os.environ.get(self.ENV_PLACEMENTS_ROOT)
+        self._placements_root: Path = (
+            Path(placements_root).expanduser().resolve()
+            if placements_root
+            else Path.home().resolve()
+        )
 
         self._content_dir: Path = (
             Path(content_dir).expanduser().resolve() if content_dir else self.DEFAULT_CONTENT
@@ -1320,6 +1435,9 @@ class ClaudeConfig:
 
         content = os.environ.get(cls.ENV_CONTENT_DIR) or data.get("content_dir")
         target = os.environ.get(cls.ENV_TARGET_BASE) or data.get("target_base")
+        placements_root = (
+            os.environ.get(cls.ENV_PLACEMENTS_ROOT) or data.get("placements_root")
+        )
 
         cfg = cls(
             content_dir=content,
@@ -1332,6 +1450,7 @@ class ClaudeConfig:
             relative_symlinks=bool(data.get("relative_symlinks", True)),
             auto_reconcile=bool(data.get("auto_reconcile", True)),
             vendors=data.get("vendors") or None,
+            placements_root=placements_root,
         )
         cfg._loaded_config_path = path if path.exists() else None
         return cfg
@@ -1344,6 +1463,15 @@ class ClaudeConfig:
 
     def with_target(self, path: Path | str) -> ClaudeConfig:
         self._target_base = Path(path).expanduser().resolve()
+        return self
+
+    def with_placements_root(self, path: Path | str) -> ClaudeConfig:
+        """Set the directory placements are linked under (default: home).
+
+        Tests point this at a tmp_path so ``install`` never links into
+        the real home directory.
+        """
+        self._placements_root = Path(path).expanduser().resolve()
         return self
 
     def with_secret_patterns(self, patterns: Iterable[str]) -> ClaudeConfig:
@@ -1441,6 +1569,16 @@ class ClaudeConfig:
         return self._target_base
 
     @property
+    def placements_dir(self) -> Path:
+        """The 'placements/' subdir inside content_dir: files linked under $HOME."""
+        return self._content_dir / self.PLACEMENTS_DIR
+
+    @property
+    def placements_root(self) -> Path:
+        """Directory placements are linked under. Defaults to the home directory."""
+        return self._placements_root
+
+    @property
     def hostname(self) -> str:
         return _current_hostname()
 
@@ -1522,6 +1660,10 @@ class ClaudeConfig:
             "auto_reconcile": self._auto_reconcile,
             "vendors": list(self._vendors),
         }
+        # Only persisted when moved off the default, so a config file copied
+        # to another machine keeps following that machine's home directory.
+        if self._placements_root != Path.home().resolve():
+            merged["placements_root"] = str(self._placements_root)
         path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
         self._loaded_config_path = path
         return self
@@ -1715,6 +1857,37 @@ class ClaudeConfig:
                     self._symlink(src, target)
                 overlays += 1
 
+        # Pass 4: placements. Runs before the vendor writes below so a
+        # placement that owns a vendor's global file (e.g. ~/.codex/AGENTS.md)
+        # is a symlink by the time that write looks at it, and is left alone.
+        placed = 0
+        refused: list[tuple[str, str]] = []
+        for src, rel in self._placement_files():
+            if self._is_secret(rel):
+                secrets += 1
+                continue
+            try:
+                target = self._placement_target(rel)
+            except ConfigError as e:
+                refused.append((str(rel), str(e)))
+                self._warn(f"placement-refused:{rel}", f"placement {rel} refused: {e}")
+                continue
+            if self._is_correct_link(target, src):
+                correct += 1
+                continue
+            problem = self._placement_conflict(target)
+            if problem:
+                refused.append((str(rel), problem))
+                self._warn(f"placement-refused:{rel}", f"placement {rel} refused: {problem}")
+                continue
+            if not dry_run:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            if self._back_up_real_file(target, dry_run=dry_run):
+                backed_up += 1
+            if not dry_run:
+                self._symlink(src, target)
+            placed += 1
+
         # Slice 4: write the canonical AGENTS.md into each configured
         # vendor's global_target (e.g., ~/.cursor/rules/agents.md).
         # claude-code's global_target is target_base, already handled by
@@ -1744,6 +1917,8 @@ class ClaudeConfig:
             host_overlays_linked=overlays,
             secrets_skipped=secrets,
             global_writes=global_writes,
+            placements_linked=placed,
+            placements_refused=refused,
         )
         if not dry_run:
             self._audit(
@@ -1771,9 +1946,19 @@ class ClaudeConfig:
     ) -> Path:
         """Drop the canonical content into ``adapter.global_target``.
 
-        Writes a single file (``agents.md``) owned by the configurator,
-        so other rule files the user has in that directory stay
-        untouched. Returns the destination path.
+        Writes a single file (``adapter.global_filename``) owned by the
+        configurator, so other rule files the user has in that directory
+        stay untouched. Returns the destination path.
+
+        Safety rules, because several destinations (``~/.codex/AGENTS.md``,
+        ``~/.gemini/GEMINI.md``) are files people write by hand:
+
+        - a symlink at the destination is left alone: the user manages that
+          file another way, usually a placement pointing into the content
+          repo, and writing through it would overwrite the repo copy;
+        - a real file that is neither identical nor marked as composed by
+          the configurator is backed up to ``*.before-claude-config`` the
+          first time, the same way ``install`` backs up ``~/.claude`` files.
         """
         assert adapter.global_target is not None
         assert adapter.canonical_source is not None
@@ -1789,11 +1974,38 @@ class ClaudeConfig:
                     f"(needed for {adapter.name} global install)"
                 )
         body = source.read_text(encoding="utf-8")
-        dest = adapter.global_target / "agents.md"
+        dest = adapter.global_target / adapter.global_filename
+        self._write_vendor_global(dest, body, dry_run=dry_run)
+        for legacy in adapter.legacy_global_files:
+            if legacy.is_file() and not legacy.is_symlink():
+                self._warn(
+                    f"legacy-global:{legacy}",
+                    f"{adapter.name}: {legacy} is deprecated; "
+                    f"{adapter.name} reads {dest}. Refreshed both.",
+                )
+                if not dry_run:
+                    legacy.write_text(body, encoding="utf-8")
+        return dest
+
+    def _write_vendor_global(self, dest: Path, body: str, dry_run: bool) -> None:
+        """Write ``body`` to ``dest`` under the rules in ``_install_global_for_vendor``."""
+        if dest.is_symlink():
+            self._warn(
+                f"vendor-global-symlink:{dest}",
+                f"{dest} is a symlink; leaving it alone (managed elsewhere)",
+            )
+            return
+        if dest.is_file():
+            existing = dest.read_text(encoding="utf-8", errors="replace")
+            if existing == body:
+                return
+            ours = self.AGENTS_MD_AUTOGEN_MARKER in existing
+            if not ours and not self._backup_path(dest).exists():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                self._back_up_real_file(dest, dry_run=dry_run)
         if not dry_run:
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(body, encoding="utf-8")
-        return dest
 
     # ---- AGENTS.md composition ---------------------------------------
 
@@ -2021,7 +2233,12 @@ class ClaudeConfig:
     # ---- uninstall ----------------------------------------------------
 
     def uninstall(self, restore_backups: bool = True) -> UninstallReport:
-        """Remove every symlink in target_base that points into src_dir.
+        """Remove every symlink in target_base that points into src_dir,
+        and every placement link that points into placements_dir.
+
+        Placements are found from the files currently under
+        ``placements/``: remove a placement's link (``uninstall``) before
+        deleting its source file, or the link is left dangling.
 
         With ``restore_backups=True`` (default), any ``*.before-claude-config``
         file sitting next to a removed symlink is moved back to the original
@@ -2039,12 +2256,24 @@ class ClaudeConfig:
             removed += 1
             if self._unlink_and_restore(link, restore_backups):
                 restored += 1
+
+        placements_removed = 0
+        for link in self._placement_links():
+            removed += 1
+            placements_removed += 1
+            if self._unlink_and_restore(link, restore_backups):
+                restored += 1
         self._audit(
             "uninstall",
             removed=removed,
             backups_restored=restored,
+            placements_removed=placements_removed,
         )
-        return UninstallReport(removed=removed, backups_restored=restored)
+        return UninstallReport(
+            removed=removed,
+            backups_restored=restored,
+            placements_removed=placements_removed,
+        )
 
     # ---- track --------------------------------------------------------
 
@@ -2781,6 +3010,22 @@ class ClaudeConfig:
                         f"(hostname is {self.hostname}, link points at {parts[0]})"
                     )
 
+        # Placements: every file under placements/ is linked at its target.
+        for src, rel in self._placement_files():
+            if self._is_secret(rel):
+                continue
+            try:
+                target = self._placement_target(rel)
+            except ConfigError as e:
+                issues.append(f"refused placement: {rel} ({e})")
+                continue
+            if self._is_correct_link(target, src):
+                continue
+            if target.is_symlink() or target.exists():
+                issues.append(f"placement not linked: {target} (expected -> {src})")
+            else:
+                issues.append(f"missing placement: {target}")
+
         return DoctorReport(issues=issues)
 
     # ---- status -------------------------------------------------------
@@ -2829,6 +3074,23 @@ class ClaudeConfig:
             git_summary = r.stdout.strip()
             git_clean = not git_summary
 
+        placements: list[tuple[str, str]] = []
+        for src, rel in self._placement_files():
+            if self._is_secret(rel):
+                continue
+            try:
+                target = self._placement_target(rel)
+            except ConfigError:
+                placements.append((str(rel), "refused"))
+                continue
+            if self._is_correct_link(target, src):
+                state = "linked"
+            elif target.is_symlink() or target.exists():
+                state = "foreign"
+            else:
+                state = "missing"
+            placements.append((str(rel), state))
+
         return StatusReport(
             content_dir=self._content_dir,
             target_base=self._target_base,
@@ -2837,6 +3099,8 @@ class ClaudeConfig:
             untracked_candidates=candidates,
             git_clean=git_clean,
             git_summary=git_summary,
+            placements=placements,
+            placements_root=self._placements_root,
         )
 
     # ---- sync ---------------------------------------------------------
@@ -4329,6 +4593,94 @@ class ClaudeConfig:
                 continue
             out.append(p)
         return sorted(out)
+
+    def _placement_files(self) -> list[tuple[Path, Path]]:
+        """(source, path relative to placements_dir) for every placement file.
+
+        Walks without following directory symlinks, skips ``.git`` and
+        anything matching the ignore patterns. Symlinks inside the
+        placements tree are skipped, as ``_files_to_track`` does for claude/.
+        """
+        root = self.placements_dir
+        if not root.is_dir():
+            return []
+        out: list[tuple[Path, Path]] = []
+        for cur, dirs, files in os.walk(root, followlinks=False):
+            dirs[:] = sorted(
+                d for d in dirs if d != ".git" and not self._matches_ignore(d)
+            )
+            for name in sorted(files):
+                p = Path(cur) / name
+                if p.is_symlink() or not p.is_file() or self._matches_ignore(name):
+                    continue
+                out.append((p, p.relative_to(root)))
+        return out
+
+    def _placement_target(self, rel: Path | str) -> Path:
+        """Where placement ``rel`` is linked. Raises ``ConfigError`` if refused.
+
+        Refused: absolute paths, any ``..`` component, a path that would
+        land outside ``placements_root``, inside the content dir (a link
+        back into its own source), or inside ``target_base`` (owned by the
+        ``claude/`` tree; put the file there instead).
+        """
+        rel_path = Path(rel)
+        if rel_path.is_absolute() or rel_path.drive:
+            raise ConfigError(f"absolute path not allowed: {rel}")
+        if any(part == ".." for part in rel_path.parts) or not rel_path.parts:
+            raise ConfigError(f"path escapes {self._placements_root}: {rel}")
+        root = self._placements_root
+        target = Path(os.path.normpath(root / rel_path))
+        if target == root or not target.is_relative_to(root):
+            raise ConfigError(f"path escapes {root}: {rel}")
+        if target.is_relative_to(self._content_dir):
+            raise ConfigError(f"target {target} is inside the content dir")
+        if target.is_relative_to(self._target_base):
+            raise ConfigError(
+                f"target {target} is inside {self._target_base}; "
+                f"put it under {self.src_dir} instead"
+            )
+        return target
+
+    def _placement_conflict(self, target: Path) -> str:
+        """Why a placement cannot be linked at ``target``, or ``""`` if it can.
+
+        A real file is not a conflict: it is backed up. A real directory,
+        or a symlink that points anywhere but the placements tree, is: the
+        configurator never replaces something it cannot back up as a file
+        or did not create.
+        """
+        if target.is_symlink():
+            try:
+                stored = Path(os.readlink(target))
+            except OSError as e:
+                return f"unreadable symlink at {target}: {e}"
+            dest = stored if stored.is_absolute() else target.parent / stored
+            if self._path_in(dest, self.placements_dir):
+                return ""  # stale link of ours: safe to repoint
+            return f"{target} is a symlink to {stored}; remove it to place this file"
+        if target.is_dir():
+            return f"{target} is a directory"
+        return ""
+
+    def _placement_links(self) -> list[Path]:
+        """Existing placement targets that are symlinks into placements_dir."""
+        links: list[Path] = []
+        for _src, rel in self._placement_files():
+            try:
+                target = self._placement_target(rel)
+            except ConfigError:
+                continue
+            if not target.is_symlink():
+                continue
+            try:
+                stored = Path(os.readlink(target))
+            except OSError:
+                continue
+            dest = stored if stored.is_absolute() else target.parent / stored
+            if self._path_in(dest, self.placements_dir):
+                links.append(target)
+        return links
 
     def _dirs_to_symlink(self) -> list[Path]:
         """Directories in src_dir whose basename is in dir_symlink_names."""
