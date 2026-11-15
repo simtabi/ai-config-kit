@@ -159,11 +159,12 @@ What's **done**:
 3. **Multi-vendor support**: `vendors: tuple[str, ...]` on
    `ClaudeConfig`. Default is `("claude-code",)`. The bootstrap flow
    prompts the user per-vendor; selected vendors persist to the JSON
-   config. Seven CLI-based vendors are now `current` (claude-code,
-   aider, codex, cursor, cline, windsurf, copilot); `claude`
-   (web/desktop) stays `partial`. `VendorAdapter` registry maps each
-   to its global target (`~/.cursor/rules/`, `~/.codex/instructions/`,
-   etc.) and per-project files (`AGENTS.md`, `.cursorrules`,
+   config. Twelve vendors are now `current` (claude-code, aider,
+   codex, cursor, cline, windsurf, copilot, gemini, junie, kiro,
+   continue, opencode); `claude` (web/desktop) and `grok` stay
+   `partial`. `VendorAdapter` registry maps each to its global target
+   (`~/.cursor/rules/`, `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`,
+   etc.; `~/.codex/instructions/` until 0.5.0) and per-project files (`AGENTS.md`, `.cursorrules`,
    `.windsurfrules`, `.clinerules`, `.github/copilot-instructions.md`).
 4. **Auto-reconcile on upgrade**: `ClaudeConfig.reconcile()` compares
    the installed package version against `last_applied_version` in the

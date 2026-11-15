@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -2247,10 +2249,14 @@ def test_all_cli_vendors_current_after_codex_cline_wired(
 
 
 def test_codex_adapter_declares_global_and_agents_md(cfg: ClaudeConfig) -> None:
+    """Codex reads $CODEX_HOME/AGENTS.md (default ~/.codex/AGENTS.md).
+
+    Until 0.5.0 the adapter wrote ~/.codex/instructions/agents.md, which
+    Codex never read; nothing writes that path any more.
+    """
     codex = cfg.VENDOR_ADAPTERS["codex"]
     assert codex.global_target is not None
-    assert codex.global_target.name == "instructions"
-    assert codex.global_target.parent.name == ".codex"
+    assert codex.global_filename == "AGENTS.md"
     assert any(pf.rel_path == "AGENTS.md" for pf in codex.project_files)
 
 
@@ -2468,6 +2474,306 @@ def test_install_global_auto_composes_when_canonical_missing(
     cfg.install()
     body = (fake_cursor / "agents.md").read_text()
     assert "user rules" in body
+
+
+# Global-only vendors added in 0.5.0, with the path each one reads.
+GLOBAL_VENDOR_FILES: dict[str, tuple[str, ...]] = {
+    "codex": (".codex", "AGENTS.md"),
+    "gemini": (".gemini", "GEMINI.md"),
+    "grok": (".grok", "AGENTS.md"),
+    "junie": (".junie", "AGENTS.md"),
+    "kiro": (".kiro", "steering", "agents.md"),
+    "continue": (".continue", "rules", "agents.md"),
+    "opencode": (".config", "opencode", "AGENTS.md"),
+}
+
+
+def _redirected(cfg: ClaudeConfig, vendor: str, fake_home: Path) -> Path:
+    """Point ``vendor``'s global target into ``fake_home``; return the file path."""
+    real = cfg.VENDOR_ADAPTERS[vendor]
+    assert real.global_target is not None
+    parts = GLOBAL_VENDOR_FILES[vendor]
+    target_dir = fake_home.joinpath(*parts[:-1])
+    cfg.with_vendor_adapter(
+        vendor,
+        dataclasses.replace(real, global_target=target_dir),
+    )
+    return target_dir / real.global_filename
+
+
+@pytest.mark.parametrize("vendor", sorted(GLOBAL_VENDOR_FILES))
+def test_global_vendor_adapter_declares_documented_path(vendor: str) -> None:
+    adapter = ClaudeConfig.VENDOR_ADAPTERS[vendor]
+    assert vendor in ClaudeConfig.SUPPORTED_VENDORS
+    assert adapter.canonical_source == "AGENTS.md"
+    assert adapter.global_target is not None
+    assert adapter.global_filename == GLOBAL_VENDOR_FILES[vendor][-1]
+    assert adapter.status == ClaudeConfig.VENDOR_STATUS[vendor]
+    if vendor == "codex" and os.environ.get("CODEX_HOME"):
+        pytest.skip("CODEX_HOME moves the codex directory")
+    if vendor == "opencode" and os.environ.get("XDG_CONFIG_HOME"):
+        pytest.skip("XDG_CONFIG_HOME moves the opencode directory")
+    assert adapter.global_target == Path.home().joinpath(*GLOBAL_VENDOR_FILES[vendor][:-1])
+
+
+def test_grok_is_partial_until_its_global_filename_is_documented() -> None:
+    assert ClaudeConfig.VENDOR_STATUS["grok"] == "partial"
+    for vendor in ("gemini", "junie", "kiro", "continue", "opencode", "codex"):
+        assert ClaudeConfig.VENDOR_STATUS[vendor] == "current", vendor
+
+
+@pytest.mark.parametrize("vendor", sorted(GLOBAL_VENDOR_FILES))
+def test_install_writes_each_global_vendor_file(
+    cfg: ClaudeConfig, tmp_path: Path, vendor: str
+) -> None:
+    dest = _redirected(cfg, vendor, tmp_path / "fake-home")
+    cfg.with_vendors([vendor])
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# shared rules\n"
+    )
+    report = cfg.install()
+    assert (vendor, str(dest)) in report.global_writes
+    assert "# shared rules" in dest.read_text()
+
+
+def test_global_write_backs_up_hand_written_file(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """~/.gemini/GEMINI.md is often hand-written: install keeps it."""
+    dest = _redirected(cfg, "gemini", tmp_path / "fake-home")
+    dest.parent.mkdir(parents=True)
+    dest.write_text("my own gemini notes\n")
+    cfg.with_vendors(["gemini"])
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# shared\n"
+    )
+    cfg.install()
+    backup = dest.with_name("GEMINI.md.before-claude-config")
+    assert backup.read_text() == "my own gemini notes\n"
+    assert "# shared" in dest.read_text()
+
+    # A second install over our own (marked) copy does not touch the backup.
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# shared v2\n"
+    )
+    cfg.install()
+    assert backup.read_text() == "my own gemini notes\n"
+    assert "# shared v2" in dest.read_text()
+
+
+def test_global_write_leaves_a_symlinked_destination_alone(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    """A placement owning ~/.codex/AGENTS.md must not be written through."""
+    dest = _redirected(cfg, "codex", tmp_path / "fake-home")
+    dest.parent.mkdir(parents=True)
+    repo_copy = tmp_path / "repo-AGENTS.md"
+    repo_copy.write_text("repo owned\n")
+    dest.symlink_to(repo_copy)
+    cfg.with_vendors(["codex"])
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# shared\n"
+    )
+    cfg.install()
+    assert dest.is_symlink()
+    assert repo_copy.read_text() == "repo owned\n"
+
+
+def test_codex_install_leaves_the_pre_0_5_path_alone(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    home = tmp_path / "fake-home"
+    dest = _redirected(cfg, "codex", home)
+    old_path = home / ".codex" / "instructions" / "agents.md"
+    cfg.with_vendors(["codex"])
+    (cfg.src_dir / "AGENTS.md").write_text(
+        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# v1\n"
+    )
+    cfg.install()
+    assert "# v1" in dest.read_text()
+    assert not old_path.exists()  # never created
+
+    old_path.parent.mkdir(parents=True)
+    old_path.write_text("old copy\n")
+    cfg.install()
+    assert old_path.read_text() == "old copy\n"  # never written either
+
+
+# --- placements --------------------------------------------------------------
+
+
+def _placement(cfg: ClaudeConfig, rel: str, body: str = "rules\n") -> Path:
+    src = cfg.placements_dir / rel
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text(body)
+    return src
+
+
+@pytest.fixture
+def home(cfg: ClaudeConfig, tmp_path: Path) -> Path:
+    fake = tmp_path / "home"
+    fake.mkdir()
+    cfg.with_placements_root(fake)
+    return fake
+
+
+def test_placement_links_file_under_home(cfg: ClaudeConfig, home: Path) -> None:
+    src = _placement(cfg, "Artisan/projects/opensource/CLAUDE.md", "# oss\n")
+    report = cfg.install()
+    target = home / "Artisan" / "projects" / "opensource" / "CLAUDE.md"
+    assert report.placements_linked == 1
+    assert target.is_symlink()
+    assert target.resolve() == src.resolve()
+    assert target.read_text() == "# oss\n"
+    # Idempotent
+    again = cfg.install()
+    assert again.placements_linked == 0
+    assert again.already_correct >= 1
+
+
+def test_placement_backs_up_existing_real_file(cfg: ClaudeConfig, home: Path) -> None:
+    _placement(cfg, ".codex/AGENTS.md", "from repo\n")
+    target = home / ".codex" / "AGENTS.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("hand written\n")
+    report = cfg.install()
+    assert report.real_files_backed_up == 1
+    assert target.is_symlink()
+    backup = target.with_name("AGENTS.md.before-claude-config")
+    assert backup.read_text() == "hand written\n"
+
+
+def test_placement_dry_run_changes_nothing(cfg: ClaudeConfig, home: Path) -> None:
+    _placement(cfg, ".gemini/GEMINI.md")
+    report = cfg.install(dry_run=True)
+    assert report.placements_linked == 1
+    assert not (home / ".gemini").exists()
+
+
+@pytest.mark.parametrize("rel", ["../escape.md", "a/../../escape.md", "/etc/passwd"])
+def test_placement_target_refuses_escape(
+    cfg: ClaudeConfig, home: Path, rel: str
+) -> None:
+    with pytest.raises(ConfigError):
+        cfg._placement_target(rel)
+
+
+def test_placement_target_refuses_target_base_and_content_dir(
+    cfg: ClaudeConfig, tmp_path: Path
+) -> None:
+    # Root above both the content dir and target_base.
+    cfg.with_placements_root(tmp_path)
+    with pytest.raises(ConfigError, match="inside"):
+        cfg._placement_target("claude-target/CLAUDE.md")
+    with pytest.raises(ConfigError, match="content dir"):
+        cfg._placement_target("content/claude/x.md")
+    assert cfg._placement_target("elsewhere/x.md") == tmp_path / "elsewhere" / "x.md"
+
+
+def test_install_refuses_placement_over_foreign_symlink(
+    cfg: ClaudeConfig, home: Path, tmp_path: Path
+) -> None:
+    _placement(cfg, "notes/AGENTS.md")
+    other = tmp_path / "other.md"
+    other.write_text("someone else's\n")
+    target = home / "notes" / "AGENTS.md"
+    target.parent.mkdir(parents=True)
+    target.symlink_to(other)
+    report = cfg.install()
+    assert report.placements_linked == 0
+    assert [rel for rel, _ in report.placements_refused] == ["notes/AGENTS.md"]
+    assert target.resolve() == other.resolve()
+
+
+def test_install_refuses_placement_over_directory(cfg: ClaudeConfig, home: Path) -> None:
+    _placement(cfg, "proj/CLAUDE.md")
+    (home / "proj" / "CLAUDE.md").mkdir(parents=True)
+    report = cfg.install()
+    assert report.placements_refused
+    assert (home / "proj" / "CLAUDE.md").is_dir()
+
+
+def test_placements_skip_secrets_and_ignored(cfg: ClaudeConfig, home: Path) -> None:
+    _placement(cfg, ".config/tool/.env", "TOKEN=x\n")
+    _placement(cfg, "notes/.DS_Store", "")
+    report = cfg.install()
+    assert report.placements_linked == 0
+    assert report.secrets_skipped == 1
+    assert not (home / ".config" / "tool" / ".env").exists()
+
+
+def test_uninstall_removes_placements_and_restores_backup(
+    cfg: ClaudeConfig, home: Path
+) -> None:
+    _placement(cfg, ".junie/AGENTS.md", "repo\n")
+    _placement(cfg, "Artisan/CLAUDE.md", "repo\n")
+    target = home / ".junie" / "AGENTS.md"
+    target.parent.mkdir(parents=True)
+    target.write_text("original\n")
+    cfg.install()
+    report = cfg.uninstall()
+    assert report.placements_removed == 2
+    assert report.backups_restored == 1
+    assert not target.is_symlink()
+    assert target.read_text() == "original\n"
+    assert not (home / "Artisan" / "CLAUDE.md").exists()
+    # The content dir is never touched.
+    assert (cfg.placements_dir / ".junie" / "AGENTS.md").read_text() == "repo\n"
+
+
+def test_uninstall_leaves_foreign_symlink_at_placement_path(
+    cfg: ClaudeConfig, home: Path, tmp_path: Path
+) -> None:
+    _placement(cfg, "x/AGENTS.md")
+    other = tmp_path / "other.md"
+    other.write_text("keep\n")
+    (home / "x").mkdir()
+    (home / "x" / "AGENTS.md").symlink_to(other)
+    assert cfg.uninstall().placements_removed == 0
+    assert (home / "x" / "AGENTS.md").is_symlink()
+
+
+def test_status_and_doctor_report_placements(cfg: ClaudeConfig, home: Path) -> None:
+    _placement(cfg, "a/CLAUDE.md")
+    _placement(cfg, "b/AGENTS.md")
+    cfg.install()
+    (home / "b" / "AGENTS.md").unlink()
+
+    status = cfg.status()
+    assert dict(status.placements) == {"a/CLAUDE.md": "linked", "b/AGENTS.md": "missing"}
+    assert status.placements_root == home
+    assert "Placements under" in status.to_text()
+
+    issues = cfg.doctor().issues
+    assert any("missing placement" in i and "b/AGENTS.md" in i for i in issues)
+    assert not any("a/CLAUDE.md" in i for i in issues)
+
+
+def test_placements_root_from_json_and_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conf = tmp_path / "config.json"
+    conf.write_text(json.dumps({
+        "content_dir": str(tmp_path / "c"),
+        "placements_root": str(tmp_path / "h"),
+    }))
+    monkeypatch.delenv("CLAUDE_CONFIG_PLACEMENTS_ROOT", raising=False)
+    cfg = ClaudeConfig.from_config(conf)
+    assert cfg.placements_root == (tmp_path / "h").resolve()
+    assert cfg.placements_dir == (tmp_path / "c").resolve() / "placements"
+
+    monkeypatch.setenv("CLAUDE_CONFIG_PLACEMENTS_ROOT", str(tmp_path / "e"))
+    assert ClaudeConfig.from_config(conf).placements_root == (tmp_path / "e").resolve()
+
+    cfg.save_config(conf)
+    assert json.loads(conf.read_text())["placements_root"] == str(
+        (tmp_path / "h").resolve()
+    )
+
+
+def test_placements_root_defaults_to_home(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLAUDE_CONFIG_PLACEMENTS_ROOT", raising=False)
+    assert ClaudeConfig().placements_root == Path.home().resolve()
 
 
 def test_with_vendor_adapter_overrides_class_registry(

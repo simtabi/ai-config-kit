@@ -56,15 +56,21 @@ ai-config-kit init [--no-examples] [--no-git] [--with-settings] [--save]
 ai-config-kit install [--dry-run]
 ```
 
-Three passes: directory symlinks for auto-grow dirs, per-file symlinks
-for everything else, then host-overlay files. See
+Four passes: directory symlinks for auto-grow dirs, per-file symlinks
+for everything else, host-overlay files, then placements
+(`content/placements/<path>` linked at `~/<path>`, see
+[configuration.md](../configuration.md#placements)). See
 [architecture.md](../architecture.md) for details.
 
-Also (slice 4, v0.3.x+) drops the canonical `AGENTS.md` into each
-configured non-`claude-code` vendor's global target. For example with
-`vendors=["claude-code","cursor"]`, `install` writes
-`~/.cursor/rules/agents.md` in addition to the `~/.claude/` symlinks.
-Auto-composes `AGENTS.md` if it isn't on disk yet.
+Also drops the canonical `AGENTS.md` into each configured
+non-`claude-code` vendor's global target. For example with
+`vendors=["claude-code","codex","gemini"]`, `install` writes
+`~/.codex/AGENTS.md` and `~/.gemini/GEMINI.md` in addition to the
+`~/.claude/` symlinks. Auto-composes `AGENTS.md` if it isn't on disk
+yet. A hand-written file already at the destination is backed up to
+`*.before-claude-config` the first time; a symlink at the destination
+(usually a placement) is left alone. The full path table, with
+sources, is in [configuration.md](../configuration.md#vendor-global-paths).
 
 ### `compose-agents-md`: synthesize the canonical cross-vendor file
 
@@ -111,8 +117,14 @@ by `install`, not `project-install`).
 ai-config-kit uninstall [--no-restore]
 ```
 
-Removes every symlink in the target that points into the content dir.
-By default restores `*.before-claude-config` backups created by `install`.
+Removes every symlink in the target that points into the content dir,
+and every placement link that points into `content/placements/`. By
+default restores `*.before-claude-config` backups created by `install`.
+
+Placements are found from the files under `content/placements/`, so run
+`uninstall` before deleting a placement's source file; otherwise its
+link is left dangling. Vendor global files (`~/.codex/AGENTS.md`, ...)
+are copies, not links, and are not removed.
 
 ### `sync`: commit + optionally push
 
@@ -142,8 +154,9 @@ ai-config-kit status
 ```
 
 Shows content dir, target, hostname, tracked file count, untracked
-candidates under target, and git porcelain state if the content dir is
-a git repo.
+candidates under target, each placement with its state (`linked`,
+`missing`, `foreign` or `refused`), and git porcelain state if the
+content dir is a git repo.
 
 ### `doctor`: verify symlink health
 
@@ -156,6 +169,7 @@ correctly. Also flags:
 
 - Orphan symlinks (target gone).
 - Foreign host-overlay symlinks (point into another host's `hosts/` subdir).
+- Placements that are missing, refused, or replaced by something else.
 
 `--heal` runs the permission audit alongside (see `heal` verb below)
 without applying any fixes. To apply fixes, use the `heal` verb
