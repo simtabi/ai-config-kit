@@ -14,7 +14,9 @@ expects, ships opinionated "decision packs" that bake in
 content-filter-safe practices, and gives you one verb each for
 setting up a fresh machine and dropping cross-vendor rules into any
 project repo. Wired adapters: claude-code, aider, cursor, windsurf,
-copilot, codex, cline.
+copilot, codex, cline, gemini, junie, kiro, continue, opencode, plus
+grok (partial). Placements link any other file from your content repo
+to its path under your home directory.
 
 ```bash
 pip install ai-config-kit
@@ -132,7 +134,7 @@ ai-config-kit sync -m "tighten X" # commit changes in the content dir
 
 ## Multi-vendor: one rules source, every AI agent
 
-`ai-config-kit` ships adapters for seven CLI-based AI coding agents.
+`ai-config-kit` ships adapters for thirteen AI coding agents.
 Authored rules live once in your content dir; each vendor's expected
 file format gets generated on demand.
 
@@ -153,15 +155,30 @@ The supported vendors and their conventions:
 |---|---|---|
 | claude-code | (none) | `~/.claude/` |
 | aider | `AGENTS.md` | (none) |
-| codex | `AGENTS.md` (native) | `~/.codex/instructions/` |
-| cursor | `.cursorrules` | `~/.cursor/rules/` |
+| codex | `AGENTS.md` (native) | `~/.codex/AGENTS.md` (`$CODEX_HOME`) |
+| cursor | `.cursorrules` | `~/.cursor/rules/agents.md` |
 | cline | `.clinerules` | (none) |
 | windsurf | `.windsurfrules` | (none) |
 | copilot | `.github/copilot-instructions.md` | (none) |
+| gemini | (none) | `~/.gemini/GEMINI.md` |
+| junie | (none) | `~/.junie/AGENTS.md` |
+| kiro | (none) | `~/.kiro/steering/agents.md` |
+| continue | (none) | `~/.continue/rules/agents.md` |
+| opencode | (none) | `~/.config/opencode/AGENTS.md` |
+| grok (partial) | (none) | `~/.grok/AGENTS.md` |
 
-`install` also writes the canonical `AGENTS.md` into each configured
-vendor's global target (currently only cursor benefits). Existing
+`install` writes the canonical `AGENTS.md` into each configured
+vendor's global target. A hand-written file already there is backed up
+to `*.before-claude-config` first, and a symlink there is left alone.
+Sources for every path are in
+[configuration.md](docs/configuration.md#vendor-global-paths). Existing
 per-project files are never overwritten without `--force`.
+
+To link a file from your content repo anywhere under your home
+directory, put it under `placements/` at its home-relative path:
+`<content>/placements/Artisan/projects/opensource/CLAUDE.md` installs as
+`~/Artisan/projects/opensource/CLAUDE.md`. See
+[configuration.md](docs/configuration.md#placements).
 
 ---
 
@@ -171,10 +188,10 @@ per-project files are never overwritten without `--force`.
 |---|---|
 | [`bootstrap`](docs/tools/ai-config-kit.md#bootstrap--one-shot-first-time-setup) | One-shot setup (validate + init + install + optional push + doctor). |
 | [`init`](docs/tools/ai-config-kit.md#init--create-the-content-dir) | Create the content dir + git repo + apply default decision packs. |
-| [`install`](docs/tools/ai-config-kit.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/`; also drops `AGENTS.md` into each non-claude-code vendor's global target (e.g., `~/.cursor/rules/`). |
+| [`install`](docs/tools/ai-config-kit.md#install--symlink-into-target) | Symlink `content/claude/*` into `~/.claude/` and `content/placements/*` under `~`; also drops `AGENTS.md` into each non-claude-code vendor's global target (e.g., `~/.codex/AGENTS.md`). |
 | [`compose-agents-md`](docs/tools/ai-config-kit.md#compose-agents-md-synthesize-the-canonical-cross-vendor-file) | Synthesize a single `AGENTS.md` from `CLAUDE.md` + decision-pack fragments. |
 | [`project-install`](docs/tools/ai-config-kit.md#project-install-per-vendor-files-for-a-project-repo) | Write per-vendor files (`AGENTS.md`, `.cursorrules`, `.windsurfrules`, ...) into a project repo. |
-| [`uninstall`](docs/tools/ai-config-kit.md#uninstall--remove-symlinks) | Remove symlinks; restore pre-install backups. |
+| [`uninstall`](docs/tools/ai-config-kit.md#uninstall--remove-symlinks) | Remove symlinks, placements included; restore pre-install backups. |
 | [`sync`](docs/tools/ai-config-kit.md#sync--commit--optionally-push) | `git add` + commit + optionally push, scoped to the content dir. |
 | [`track`](docs/tools/ai-config-kit.md#track--move-a-real-path-into-the-content-dir) | Move a real `~/.claude/` path into content + symlink back. |
 | [`status`](docs/tools/ai-config-kit.md#status--whats-tracked--git-state) | Tracked + untracked candidates + git state. |

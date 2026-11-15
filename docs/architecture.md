@@ -28,6 +28,8 @@ Two directories, joined by symlinks:
     ├── plugins/blocklist.json          (file symlink)
     ├── plugins/known_marketplaces.json (file symlink)
     └── hosts/<hostname>/               (host-overlay source: installs per-machine)
+└── placements/                         mirrors your home directory
+    └── Artisan/projects/opensource/CLAUDE.md  -> ~/Artisan/projects/opensource/CLAUDE.md
 ```
 
 Editing `~/.claude/CLAUDE.md` opens the file in the content dir.
@@ -79,6 +81,15 @@ Use cases:
 the result of restoring a config dir on a new machine where install
 hasn't been re-run.
 
+## Placements
+
+`placements/<path>` installs as a symlink at `~/<path>` (the root is
+`placements_root`, default the home directory). It reuses the backup
+and restore helpers the `~/.claude/` passes use, runs after them and
+before the vendor global writes, and refuses paths that would leave the
+root or land in the content dir or `target_base`. Details in
+[configuration.md](configuration.md#placements).
+
 ## Idempotency and safety
 
 - `install` is idempotent. Re-runs are no-ops; matching links are counted
@@ -94,8 +105,9 @@ hasn't been re-run.
 content/
 ├── .git/                        (optional but recommended)
 ├── .gitignore                    (auto-seeded by `init`)
-└── claude/                       (required: install fails without it)
-    └── ...                        (your tracked content)
+├── claude/                       (required: install fails without it)
+│   └── ...                        (your tracked content)
+└── placements/                   (optional: files linked under ~)
 ```
 
 The `claude/` subdir wraps the actual content so non-symlinked things
