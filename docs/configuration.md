@@ -35,7 +35,7 @@ Default path: `${XDG_CONFIG_HOME:-~/.config}/ai-config-kit/config.json`.
   "include_history":    false,
   "relative_symlinks":  true,
   "vendors":            ["claude-code", "codex", "gemini"],
-  "placements_root":    "/Users/you"
+  "placements_root":    "~"
 }
 ```
 
