@@ -1689,14 +1689,7 @@ class ClaudeConfig:
                 correct += 1
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists() and not target.is_symlink():
-                backup = target.with_suffix(target.suffix + ".before-claude-config")
-                if not dry_run:
-                    target.rename(backup)
-                self._warn(
-                    f"real-file-backup:{target}",
-                    f"Real file at {target} backed up to {backup.name}",
-                )
+            if self._back_up_real_file(target, dry_run=dry_run):
                 backed_up += 1
             if not dry_run:
                 self._symlink(src, target)
@@ -1716,10 +1709,7 @@ class ClaudeConfig:
                     correct += 1
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
-                if target.exists() and not target.is_symlink():
-                    backup = target.with_suffix(target.suffix + ".before-claude-config")
-                    if not dry_run:
-                        target.rename(backup)
+                if self._back_up_real_file(target, dry_run=dry_run, warn=False):
                     backed_up += 1
                 if not dry_run:
                     self._symlink(src, target)
@@ -2046,13 +2036,9 @@ class ClaudeConfig:
                 continue
             if not self._path_in(resolved, self.src_dir):
                 continue
-            link.unlink()
             removed += 1
-            if restore_backups:
-                backup = link.with_suffix(link.suffix + ".before-claude-config")
-                if backup.exists() and not link.exists():
-                    backup.rename(link)
-                    restored += 1
+            if self._unlink_and_restore(link, restore_backups):
+                restored += 1
         self._audit(
             "uninstall",
             removed=removed,
@@ -4417,6 +4403,47 @@ class ClaudeConfig:
         if len(parts) < 3 or parts[0] != "projects":
             return False
         return parts[2] != "memory" and not (len(parts) >= 3 and "memory" in parts[2:])
+
+    BACKUP_SUFFIX: ClassVar[str] = ".before-claude-config"
+
+    @classmethod
+    def _backup_path(cls, target: Path) -> Path:
+        """Where a real file displaced by a configurator link is kept."""
+        return target.with_suffix(target.suffix + cls.BACKUP_SUFFIX)
+
+    def _back_up_real_file(self, target: Path, dry_run: bool, warn: bool = True) -> bool:
+        """Move a real file at ``target`` aside to its backup path.
+
+        The one backup code path for every pass that is about to put a
+        configurator-owned file where a real one sits. Returns ``True``
+        when a real file was (or, under ``dry_run``, would be) moved.
+        Symlinks and missing paths are left alone and return ``False``.
+        """
+        if not target.exists() or target.is_symlink():
+            return False
+        backup = self._backup_path(target)
+        if not dry_run:
+            target.rename(backup)
+        if warn:
+            self._warn(
+                f"real-file-backup:{target}",
+                f"Real file at {target} backed up to {backup.name}",
+            )
+        return True
+
+    def _unlink_and_restore(self, link: Path, restore_backups: bool) -> bool:
+        """Remove ``link`` and, if asked, move its backup back into place.
+
+        Returns ``True`` when a backup was restored.
+        """
+        link.unlink()
+        if not restore_backups:
+            return False
+        backup = self._backup_path(link)
+        if backup.exists() and not link.exists():
+            backup.rename(link)
+            return True
+        return False
 
     def _symlink(self, src: Path, target: Path) -> None:
         """Create a symlink at ``target`` pointing to ``src``.
