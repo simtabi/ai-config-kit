@@ -145,9 +145,8 @@ or source:
 | cursor | `~/.cursor/rules/agents.md` | current | unchanged |
 
 > Before 0.5.0 the codex adapter wrote `~/.codex/instructions/agents.md`,
-> which Codex does not read. That path is deprecated: `install` no
-> longer creates it, but keeps refreshing it (with a warning) where it
-> already exists, until 1.0.0.
+> which Codex does not read. `install` no longer writes it; an old copy
+> there is left untouched and can be deleted.
 
 ## Sessions and history (opt-in)
 

@@ -839,10 +839,6 @@ class VendorAdapter:
     # continue); vendors that read one named file set it (codex reads
     # ``AGENTS.md``, gemini reads ``GEMINI.md``).
     global_filename: str = "agents.md"
-    # Deprecated destinations from earlier releases. ``install`` keeps
-    # refreshing each one that already exists, so a caller relying on the
-    # old path still gets current content, and never creates a new one.
-    legacy_global_files: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1202,15 +1198,11 @@ class ClaudeConfig:
             # Codex reads $CODEX_HOME/AGENTS.md (default ~/.codex/AGENTS.md):
             # https://learn.chatgpt.com/docs/agent-configuration/agents-md
             # Until 0.5.0 this wrote ~/.codex/instructions/agents.md, which
-            # Codex does not read. That file is still refreshed when it
-            # exists (deprecated; removable from 1.0.0).
+            # Codex does not read; nothing writes that path any more.
             global_target=Path(
                 os.environ.get("CODEX_HOME") or str(Path.home() / ".codex")
             ),
             global_filename="AGENTS.md",
-            legacy_global_files=(
-                Path.home() / ".codex" / "instructions" / "agents.md",
-            ),
             project_files=(
                 # Codex reads AGENTS.md natively (announced by OpenAI 2024+).
                 # We don't write a separate codex-specific project file;
@@ -1976,15 +1968,6 @@ class ClaudeConfig:
         body = source.read_text(encoding="utf-8")
         dest = adapter.global_target / adapter.global_filename
         self._write_vendor_global(dest, body, dry_run=dry_run)
-        for legacy in adapter.legacy_global_files:
-            if legacy.is_file() and not legacy.is_symlink():
-                self._warn(
-                    f"legacy-global:{legacy}",
-                    f"{adapter.name}: {legacy} is deprecated; "
-                    f"{adapter.name} reads {dest}. Refreshed both.",
-                )
-                if not dry_run:
-                    legacy.write_text(body, encoding="utf-8")
         return dest
 
     def _write_vendor_global(self, dest: Path, body: str, dry_run: bool) -> None:

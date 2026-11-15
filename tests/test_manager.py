@@ -2252,14 +2252,11 @@ def test_codex_adapter_declares_global_and_agents_md(cfg: ClaudeConfig) -> None:
     """Codex reads $CODEX_HOME/AGENTS.md (default ~/.codex/AGENTS.md).
 
     Until 0.5.0 the adapter wrote ~/.codex/instructions/agents.md, which
-    Codex never read; that path is kept as a refresh-if-present legacy file.
+    Codex never read; nothing writes that path any more.
     """
     codex = cfg.VENDOR_ADAPTERS["codex"]
     assert codex.global_target is not None
     assert codex.global_filename == "AGENTS.md"
-    assert Path.home() / ".codex" / "instructions" / "agents.md" in (
-        codex.legacy_global_files
-    )
     assert any(pf.rel_path == "AGENTS.md" for pf in codex.project_files)
 
 
@@ -2497,12 +2494,9 @@ def _redirected(cfg: ClaudeConfig, vendor: str, fake_home: Path) -> Path:
     assert real.global_target is not None
     parts = GLOBAL_VENDOR_FILES[vendor]
     target_dir = fake_home.joinpath(*parts[:-1])
-    legacy = tuple(
-        fake_home / p.relative_to(Path.home()) for p in real.legacy_global_files
-    )
     cfg.with_vendor_adapter(
         vendor,
-        dataclasses.replace(real, global_target=target_dir, legacy_global_files=legacy),
+        dataclasses.replace(real, global_target=target_dir),
     )
     return target_dir / real.global_filename
 
@@ -2585,28 +2579,24 @@ def test_global_write_leaves_a_symlinked_destination_alone(
     assert repo_copy.read_text() == "repo owned\n"
 
 
-def test_codex_legacy_file_refreshed_only_when_present(
+def test_codex_install_leaves_the_pre_0_5_path_alone(
     cfg: ClaudeConfig, tmp_path: Path
 ) -> None:
     home = tmp_path / "fake-home"
     dest = _redirected(cfg, "codex", home)
-    legacy = home / ".codex" / "instructions" / "agents.md"
+    old_path = home / ".codex" / "instructions" / "agents.md"
     cfg.with_vendors(["codex"])
     (cfg.src_dir / "AGENTS.md").write_text(
         f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# v1\n"
     )
     cfg.install()
     assert "# v1" in dest.read_text()
-    assert not legacy.exists()  # never created afresh
+    assert not old_path.exists()  # never created
 
-    legacy.parent.mkdir(parents=True)
-    legacy.write_text("old copy\n")
-    (cfg.src_dir / "AGENTS.md").write_text(
-        f"{ClaudeConfig.AGENTS_MD_AUTOGEN_MARKER}\n# v2\n"
-    )
+    old_path.parent.mkdir(parents=True)
+    old_path.write_text("old copy\n")
     cfg.install()
-    assert "# v2" in legacy.read_text()  # a caller on the old path still works
-    assert "# v2" in dest.read_text()
+    assert old_path.read_text() == "old copy\n"  # never written either
 
 
 # --- placements --------------------------------------------------------------

@@ -15,7 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `partial`: xAI does not document the filename). Sources in
   `docs/configuration.md`.
 - `VendorAdapter.global_filename` (default `agents.md`, what every
-  adapter wrote before) and `VendorAdapter.legacy_global_files`.
+  adapter wrote before).
 - Placements: `<content>/placements/<path>` is symlinked at `~/<path>`
   by `install`, removed by `uninstall`, and reported by `status` and
   `doctor`. Root set by `placements_root` in the JSON config,
@@ -27,17 +27,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 - The codex adapter writes `$CODEX_HOME/AGENTS.md` (default
-  `~/.codex/AGENTS.md`), the file Codex reads. It no longer creates
-  `~/.codex/instructions/agents.md`, which Codex never read.
+  `~/.codex/AGENTS.md`), the file Codex reads. It no longer writes
+  `~/.codex/instructions/agents.md`, which Codex never read; an existing
+  copy there is left untouched and can be deleted.
 - Vendor global writes back up a hand-written destination file to
   `*.before-claude-config` instead of overwriting it, and leave a
   symlinked destination alone. Before, `~/.cursor/rules/agents.md` was
   overwritten unconditionally.
-
-### Deprecated
-
-- `~/.codex/instructions/agents.md`: still refreshed, with a warning,
-  where it already exists. Removable in 1.0.0.
 
 
 ### Changed
